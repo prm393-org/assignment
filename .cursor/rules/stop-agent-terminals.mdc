@@ -1,0 +1,11 @@
+---
+description: Stop all agent-started terminals after finishing a reply
+alwaysApply: true
+---
+
+# Terminal cleanup
+
+Sau khi hoàn thành task hoặc trả lời xong user:
+- Dừng / kill mọi process terminal do agent khởi chạy (vd. `flutter run`, build dài, script nền).
+- Không để `flutter run` hoặc lệnh nền treo sau khi kết thúc lượt trả lời.
+- Không tắt terminal do user tự mở và đang dùng.

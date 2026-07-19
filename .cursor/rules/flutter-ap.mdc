@@ -1,0 +1,40 @@
+---
+description: Flutter AP — Clean Architecture, UI chuẩn, clean code, tiết kiệm token
+alwaysApply: true
+---
+
+# Flutter AP
+
+## Agent (token)
+- Trả lời ngắn, đúng trọng tâm. Không giải thích lại yêu cầu.
+- Chỉ sửa file liên quan. Không thêm docs/comment thừa.
+- Không đề xuất thư viện/refactor lớn trừ khi được hỏi.
+
+## Stack & Clean Architecture (bắt buộc)
+- Flutter 3.x + Material 3. Feature-first Clean Architecture.
+- State: Riverpod. DI nhẹ qua Riverpod providers (không bắt buộc GetIt).
+- Dependency rule: `presentation → domain ← data`. Domain không import Flutter/data.
+- Mỗi feature:
+  ```
+  lib/features/<name>/
+    data/       # datasources, models (DTO), repositories impl
+    domain/     # entities, repository contracts, usecases
+    presentation/  # screens, widgets, providers/controllers
+  ```
+- Shared: `lib/core/{theme,network,error,utils,widgets}`, `main.dart`.
+- Luồng: UI → Provider/Notifier → UseCase → Repository (interface) → DataSource.
+- Naming: file `snake_case`, class `PascalCase`, biến/hàm `camelCase`. Boolean: `isX` / `hasX`.
+
+## UI (bắt buộc đẹp – sạch – dễ nhìn)
+- Theme tập trung trong `ThemeData` / `ColorScheme` / `TextTheme`. Không hardcode màu/font rải rác.
+- Spacing theo hệ 4/8 (`8, 12, 16, 24`). Padding màn hình ≥ 16.
+- Hierarchy rõ: 1 accent color chính, nền sáng trung tính, contrast đủ.
+- Widget nhỏ, 1 trách nhiệm. Prefer `StatelessWidget` + `const`.
+- List dài: `ListView.builder`. Ảnh: cache + kích thước hợp lý.
+- States bắt buộc: loading / empty / error (+ retry nếu cần).
+- Tránh: shadow chồng, gradient tím mặc định, card lồng card, style tùy tiện mỗi màn.
+
+## Code quality
+- Null-safety nghiêm. Early return. Map lỗi ở data → domain/app failure rõ ràng.
+- `const` mọi chỗ được. UI không gọi API/datasource trực tiếp.
+- Import: `dart:` → `package:` → relative. Single quotes. Không magic number.
