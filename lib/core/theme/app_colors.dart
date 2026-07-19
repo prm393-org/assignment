@@ -8,10 +8,10 @@ abstract final class AppColors {
   static const Color mint = Color(0xFFE8F5E9);
   static const Color mintDeep = Color(0xFFC8E6C9);
   static const Color darkGreen = Color(0xFF064E2B);
-  static const Color canvas = Color(0xFFF3F7F2);
-  static const Color canvasSoft = Color(0xFFF8FBF7);
+  static const Color canvas = Color(0xFFFFFFFF);
+  static const Color canvasSoft = Color(0xFFFAFAFA);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceElevated = Color(0xFFF0F5EF);
+  static const Color surfaceElevated = Color(0xFFF4F6F4);
   static const Color ink = Color(0xFF15231A);
   static const Color body = Color(0xFF4A5A50);
   static const Color muted = Color(0xFF7A8A80);

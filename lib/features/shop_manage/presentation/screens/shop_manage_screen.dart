@@ -6,6 +6,7 @@ import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
 import 'package:chuoi_xanh_viet/features/shop_manage/presentation/providers/shop_manage_providers.dart';
 
@@ -16,32 +17,79 @@ class ShopManageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myShopsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Gian hàng của tôi')),
-      floatingActionButton: FloatingActionButton(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Bán hàng', style: Theme.of(context).textTheme.bodySmall),
+            Text('Gian hàng', style: Theme.of(context).textTheme.titleLarge),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createShop(context, ref),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add_business_rounded),
+        label: const Text('Tạo shop'),
       ),
       body: AsyncBody(
         value: async.asLike,
         onRetry: () => ref.invalidate(myShopsProvider),
         isEmpty: (list) => list.isEmpty,
-        emptyMessage: 'Chưa có gian hàng',
+        emptyMessage: 'Chưa có gian hàng — tạo shop để đăng bán sản phẩm',
         builder: (list) => ListView.separated(
           padding: AppSpacing.screen,
-          itemCount: list.length,
+          itemCount: list.length + 1,
           separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
-            final s = list[i];
-            return ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.hairline),
-              ),
-              tileColor: AppColors.surface,
-              title: Text(s.name),
-              subtitle: Text(s.farmName ?? s.status),
-              trailing: const Icon(Icons.chevron_right),
+            if (i == 0) {
+              return SoftHeroBanner(
+                title: 'Gian hàng của bạn',
+                subtitle: 'Quản lý sản phẩm, đơn hàng và đánh giá.',
+                actionLabel: 'Tạo gian hàng',
+                onAction: () => _createShop(context, ref),
+                icon: Icons.storefront_rounded,
+              );
+            }
+            final s = list[i - 1];
+            final open = s.status.toLowerCase() == 'open';
+            return SurfaceCard(
+              padding: const EdgeInsets.all(14),
               onTap: () => context.push('/farmer/shop/${s.id}'),
+              child: Row(
+                children: [
+                  const IconBadge(
+                    icon: Icons.store_rounded,
+                    size: 56,
+                    color: AppColors.mintDeep,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          s.farmName ?? 'Gắn với nông trại',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 8),
+                        StatusChip(
+                          label: open ? 'Đang mở' : s.status,
+                          tone: open ? StatusTone.success : StatusTone.neutral,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.muted,
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -70,7 +118,7 @@ class ShopManageScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: farmId,
+                initialValue: farmId,
                 items: [
                   for (final f in farms)
                     DropdownMenuItem(value: f.id, child: Text(f.name)),
@@ -78,13 +126,25 @@ class ShopManageScreen extends ConsumerWidget {
                 onChanged: (v) => setLocal(() => farmId = v ?? farmId),
                 decoration: const InputDecoration(labelText: 'Nông trại'),
               ),
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Tên gian hàng')),
-              TextField(controller: desc, decoration: const InputDecoration(labelText: 'Mô tả')),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Tên gian hàng'),
+              ),
+              TextField(
+                controller: desc,
+                decoration: const InputDecoration(labelText: 'Mô tả'),
+              ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Tạo')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Huỷ'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Tạo'),
+            ),
           ],
         ),
       ),

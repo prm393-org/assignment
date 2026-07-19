@@ -6,6 +6,7 @@ import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/farm/domain/entities/farm.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
 
@@ -54,10 +55,19 @@ class FarmsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myFarmsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Nông trại')),
-      floatingActionButton: FloatingActionButton(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Quản lý', style: Theme.of(context).textTheme.bodySmall),
+            Text('Nông trại', style: Theme.of(context).textTheme.titleLarge),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/farmer/farms/create'),
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Thêm trại'),
       ),
       body: AsyncBody(
         value: async.asLike,
@@ -66,28 +76,84 @@ class FarmsListScreen extends ConsumerWidget {
         emptyMessage: 'Chưa có nông trại. Tạo mới để bắt đầu.',
         builder: (list) => ListView.separated(
           padding: AppSpacing.screen,
-          itemCount: list.length,
+          itemCount: list.length + 1,
           separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
-            final f = list[i];
-            return ListTile(
+            if (i == 0) {
+              return SoftHeroBanner(
+                title: 'Trang trại của bạn',
+                subtitle: '${list.length} nông trại đang quản lý',
+                actionLabel: 'Tạo nông trại',
+                onAction: () => context.push('/farmer/farms/create'),
+                icon: Icons.agriculture_rounded,
+              );
+            }
+            final f = list[i - 1];
+            return SurfaceCard(
+              padding: const EdgeInsets.all(14),
               onTap: () => context.push('/farmer/farms/${f.id}'),
-              onLongPress: () => _deleteFarm(context, ref, f),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.hairline),
-              ),
-              tileColor: AppColors.surface,
-              title: Text(f.name),
-              subtitle:
-                  Text('${f.areaHa} ha · ${f.cropMain}\n${f.locationLabel}'),
-              isThreeLine: true,
-              trailing: PopupMenuButton<String>(
-                onSelected: (v) {
-                  if (v == 'delete') _deleteFarm(context, ref, f);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'delete', child: Text('Xoá')),
+              child: Row(
+                children: [
+                  const IconBadge(
+                    icon: Icons.grass_rounded,
+                    size: 56,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          f.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${f.areaHa} ha · ${f.cropMain}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.place_outlined,
+                              size: 14,
+                              color: AppColors.muted,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                f.locationLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (f.inCooperative) ...[
+                          const SizedBox(height: 8),
+                          const StatusChip(
+                            label: 'Thuộc HTX',
+                            tone: StatusTone.success,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (v) {
+                      if (v == 'edit') {
+                        context.push('/farmer/farms/${f.id}/edit');
+                      } else if (v == 'delete') {
+                        _deleteFarm(context, ref, f);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Sửa')),
+                      PopupMenuItem(value: 'delete', child: Text('Xoá')),
+                    ],
+                  ),
                 ],
               ),
             );

@@ -356,3 +356,131 @@ class StatPill extends StatelessWidget {
     );
   }
 }
+
+class IconBadge extends StatelessWidget {
+  const IconBadge({
+    super.key,
+    required this.icon,
+    this.size = 48,
+    this.color = AppColors.mint,
+    this.iconColor = AppColors.forest,
+  });
+
+  final IconData icon;
+  final double size;
+  final Color color;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      child: Icon(icon, color: iconColor, size: size * 0.45),
+    );
+  }
+}
+
+class StatusChip extends StatelessWidget {
+  const StatusChip({
+    super.key,
+    required this.label,
+    this.tone = StatusTone.neutral,
+  });
+
+  final String label;
+  final StatusTone tone;
+
+  factory StatusChip.order(String status) {
+    final s = status.toLowerCase();
+    final label = switch (s) {
+      'pending' => 'Chờ xử lý',
+      'confirmed' => 'Đã xác nhận',
+      'shipping' => 'Đang giao',
+      'delivered' => 'Đã giao',
+      'cancelled' => 'Đã huỷ',
+      _ => status,
+    };
+    final tone = switch (s) {
+      'pending' => StatusTone.warning,
+      'confirmed' => StatusTone.info,
+      'shipping' => StatusTone.info,
+      'delivered' => StatusTone.success,
+      'cancelled' => StatusTone.danger,
+      _ => StatusTone.neutral,
+    };
+    return StatusChip(label: label, tone: tone);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (tone) {
+      StatusTone.success => (const Color(0xFFD1FAE5), AppColors.success),
+      StatusTone.warning => (const Color(0xFFFEF3C7), AppColors.warning),
+      StatusTone.danger => (const Color(0xFFFEE2E2), AppColors.error),
+      StatusTone.info => (AppColors.mint, AppColors.forest),
+      StatusTone.neutral => (AppColors.surfaceElevated, AppColors.body),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
+  }
+}
+
+enum StatusTone { success, warning, danger, info, neutral }
+
+class PageHeader extends StatelessWidget {
+  const PageHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.icon,
+  });
+
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            IconBadge(icon: icon!),
+            const SizedBox(width: 14),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleLarge),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
