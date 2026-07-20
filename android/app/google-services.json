@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "833822181033",
+    "project_id": "prm301-asm",
+    "storage_bucket": "prm301-asm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:833822181033:android:bb1903ade4a65963b08bb8",
+        "android_client_info": {
+          "package_name": "vn.chuoixanh.chuoi_xanh_viet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "833822181033-i7hntapp385deu3okl59phqhov1id010.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-m5xULyzyRykMQfd-zKDJ4BwFoEjUZ48"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "833822181033-i7hntapp385deu3okl59phqhov1id010.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
