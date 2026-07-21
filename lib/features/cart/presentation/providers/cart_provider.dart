@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:chuoi_xanh_viet/core/error/firestore_exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/current_uid_provider.dart';
+import 'package:chuoi_xanh_viet/core/firebase/firestore_refs.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 
 class CartItem extends Equatable {
@@ -102,11 +107,80 @@ List<CartShopGroup> groupCartByShop(List<CartItem> items) {
 }
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super(const []) {
-    _hydrate();
+  CartNotifier(this._ref) : super(const []) {
+    final uid = _ref.read(currentFirebaseUidProvider);
+    _bindUser(uid);
+    _uidSub = _ref.listen<String?>(currentFirebaseUidProvider, (
+      previous,
+      next,
+    ) {
+      if (previous == next) return;
+      if (previous == null && next != null) {
+        _migrateGuestCartTo(next);
+      } else {
+        _bindUser(next);
+      }
+    });
   }
 
+  final Ref _ref;
   static const _key = 'cart_storage';
+
+  String? _boundUid;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _firestoreSub;
+  ProviderSubscription<String?>? _uidSub;
+
+  /// Guests (no Firebase uid) keep the pre-Firestore local-only behavior.
+  /// Signed-in users get a live Firestore listener instead, which is what
+  /// makes the cart show up on a second device.
+  void _bindUser(String? uid) {
+    _boundUid = uid;
+    _firestoreSub?.cancel();
+    _firestoreSub = null;
+    if (uid == null) {
+      _hydrate();
+      return;
+    }
+    _firestoreSub = FirestoreRefs.cartItemsRef(uid).snapshots().listen((
+      snapshot,
+    ) {
+      state = snapshot.docs
+          .map((d) => CartItem.fromJson(d.data()))
+          .toList();
+    });
+  }
+
+  /// Runs once, right when a guest logs in: folds whatever was sitting in
+  /// the local SharedPreferences cart into the user's Firestore cart
+  /// (summing quantities for items already present there) before switching
+  /// this notifier over to the Firestore-backed mode.
+  Future<void> _migrateGuestCartTo(String uid) async {
+    final guestItems = state;
+    _bindUser(uid);
+    if (guestItems.isEmpty) return;
+    try {
+      final ref = FirestoreRefs.cartItemsRef(uid);
+      final batch = FirebaseFirestore.instance.batch();
+      for (final item in guestItems) {
+        final doc = ref.doc(item.productId);
+        final existing = await doc.get();
+        if (existing.exists) {
+          final existingQty = readInt(existing.data() ?? {}, ['quantity']);
+          final max = item.stockQty?.toInt() ?? 9999;
+          final mergedQty = (existingQty + item.quantity).clamp(1, max);
+          batch.set(doc, item.copyWith(quantity: mergedQty).toJson());
+        } else {
+          batch.set(doc, item.toJson());
+        }
+      }
+      await batch.commit();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_key);
+    } catch (_) {
+      // Best-effort merge — if it fails, the guest cart is simply not
+      // folded in yet; nothing is lost since SharedPreferences still has it.
+    }
+  }
 
   Future<void> _hydrate() async {
     final prefs = await SharedPreferences.getInstance();
@@ -128,55 +202,105 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   Future<void> addItem(CartItem item, {int quantity = 1}) async {
+    CartItem effective;
     final idx = state.indexWhere((e) => e.productId == item.productId);
     if (idx >= 0) {
       final existing = state[idx];
       final max = existing.stockQty?.toInt() ?? 9999;
       final next = (existing.quantity + quantity).clamp(1, max);
+      effective = existing.copyWith(quantity: next);
       final copy = [...state];
-      copy[idx] = existing.copyWith(quantity: next);
+      copy[idx] = effective;
       state = copy;
     } else {
-      state = [...state, item.copyWith(quantity: quantity)];
+      effective = item.copyWith(quantity: quantity);
+      state = [...state, effective];
     }
-    await _persist();
+    await _writeItem(effective);
   }
 
   Future<void> updateQuantity(String productId, int delta) async {
+    CartItem? updated;
     state = [
       for (final i in state)
         if (i.productId == productId)
-          i.copyWith(
+          (updated = i.copyWith(
             quantity: (i.quantity + delta).clamp(
               1,
               i.stockQty?.toInt() ?? 9999,
             ),
-          )
+          ))
         else
           i,
     ];
-    await _persist();
+    if (updated != null) await _writeItem(updated);
   }
 
   Future<void> removeItem(String productId) async {
     state = state.where((e) => e.productId != productId).toList();
-    await _persist();
+    await _deleteItems([productId]);
   }
 
   Future<void> removeByShop(String shopId) async {
+    final removedIds = state
+        .where((e) => e.shopId == shopId)
+        .map((e) => e.productId)
+        .toList();
     state = state.where((e) => e.shopId != shopId).toList();
-    await _persist();
+    await _deleteItems(removedIds);
   }
 
   Future<void> clear() async {
+    final removedIds = state.map((e) => e.productId).toList();
     state = const [];
-    await _persist();
+    await _deleteItems(removedIds);
+  }
+
+  Future<void> _writeItem(CartItem item) async {
+    final uid = _boundUid;
+    if (uid == null) {
+      await _persist();
+      return;
+    }
+    try {
+      await FirestoreRefs.cartItemsRef(
+        uid,
+      ).doc(item.productId).set(item.toJson());
+    } catch (e) {
+      throw mapFirestoreException(e);
+    }
+  }
+
+  Future<void> _deleteItems(List<String> productIds) async {
+    final uid = _boundUid;
+    if (uid == null) {
+      await _persist();
+      return;
+    }
+    if (productIds.isEmpty) return;
+    try {
+      final ref = FirestoreRefs.cartItemsRef(uid);
+      final batch = FirebaseFirestore.instance.batch();
+      for (final id in productIds) {
+        batch.delete(ref.doc(id));
+      }
+      await batch.commit();
+    } catch (e) {
+      throw mapFirestoreException(e);
+    }
+  }
+
+  @override
+  void dispose() {
+    _firestoreSub?.cancel();
+    _uidSub?.close();
+    super.dispose();
   }
 }
 
 final cartProvider =
     StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
+  return CartNotifier(ref);
 });
 
 final cartCountProvider = Provider<int>((ref) {

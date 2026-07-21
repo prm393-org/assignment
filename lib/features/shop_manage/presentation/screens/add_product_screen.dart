@@ -6,6 +6,8 @@ import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/features/shop_manage/data/local/pending_product_draft.dart';
+import 'package:chuoi_xanh_viet/features/shop_manage/presentation/providers/pending_product_draft_queue_provider.dart';
 import 'package:chuoi_xanh_viet/features/shop_manage/presentation/providers/shop_manage_providers.dart';
 import 'package:chuoi_xanh_viet/features/upload/presentation/providers/upload_providers.dart';
 
@@ -59,18 +61,41 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   Future<void> _submit() async {
     if (_saleUnitId == null) return;
     setState(() => _loading = true);
+    final price = double.tryParse(_price.text) ?? 0;
+    final stockQty = double.tryParse(_stock.text);
+    final name = _name.text.trim().isEmpty ? null : _name.text.trim();
+    final imageUrl = _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim();
     try {
       await ref.read(shopManageRepositoryProvider).addProduct(widget.shopId, {
         'sale_unit_id': _saleUnitId,
-        'name': _name.text.trim().isEmpty ? null : _name.text.trim(),
-        'price': double.tryParse(_price.text) ?? 0,
-        'stock_qty': double.tryParse(_stock.text),
-        if (_imageUrl.text.trim().isNotEmpty)
-          'image_url': _imageUrl.text.trim(),
+        'name': name,
+        'price': price,
+        'stock_qty': stockQty,
+        if (imageUrl != null) 'image_url': imageUrl,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đã thêm sản phẩm')),
+        );
+        context.pop();
+      }
+    } on NetworkFailure {
+      await ref.read(pendingProductDraftQueueProvider.notifier).enqueue(
+            PendingProductDraft(
+              localId: DateTime.now().microsecondsSinceEpoch.toString(),
+              shopId: widget.shopId,
+              saleUnitId: _saleUnitId!,
+              name: name,
+              price: price,
+              stockQty: stockQty,
+              imageUrl: imageUrl,
+            ),
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã lưu offline, sẽ đồng bộ khi có mạng'),
+          ),
         );
         context.pop();
       }

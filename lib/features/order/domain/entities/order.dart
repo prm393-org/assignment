@@ -27,6 +27,21 @@ class OrderItem extends Equatable {
   final String? myReviewId;
   final int? myReviewRating;
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'productId': productId,
+        'qty': qty,
+        'unitPrice': unitPrice,
+        'lineTotal': lineTotal,
+        'product': {
+          'name': productName,
+          'unit': unit,
+          'imageUrl': imageUrl,
+        },
+        if (myReviewId != null)
+          'myReview': {'id': myReviewId, 'rating': myReviewRating},
+      };
+
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     final product = asMap(json['product'] ?? json['products']);
     final review = asMap(json['myReview'] ?? json['my_review']);
@@ -82,6 +97,24 @@ class OrderEntity extends Equatable {
   final List<OrderItem> items;
   final double? sellerPayout;
   final String? checkoutUrl;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'shopId': shopId,
+        'status': status,
+        'paymentMethod': paymentMethod,
+        'paymentStatus': paymentStatus,
+        'totalAmount': totalAmount,
+        'createdAt': createdAt,
+        'shippingName': shippingName,
+        'shippingPhone': shippingPhone,
+        'shippingAddress': shippingAddress,
+        'note': note,
+        'shop': {'name': shopName},
+        'items': items.map((e) => e.toJson()).toList(),
+        'sellerPayout': sellerPayout,
+        'checkoutUrl': checkoutUrl,
+      };
 
   factory OrderEntity.fromJson(Map<String, dynamic> json) {
     final shop = asMap(json['shop'] ?? json['shops']);
@@ -139,6 +172,15 @@ class ShopEarnings extends Equatable {
   final double pipelineEstimatedPayout;
   final int finalizedOrderCount;
   final int pipelineOrderCount;
+
+  Map<String, dynamic> toJson() => {
+        'finalizedSellerPayout': finalizedSellerPayout,
+        'totalGmvFinalized': totalGmvFinalized,
+        'totalPlatformCommissionFinalized': totalPlatformCommissionFinalized,
+        'pipelineEstimatedPayout': pipelineEstimatedPayout,
+        'finalizedOrderCount': finalizedOrderCount,
+        'pipelineOrderCount': pipelineOrderCount,
+      };
 
   factory ShopEarnings.fromJson(Map<String, dynamic> json) => ShopEarnings(
         finalizedSellerPayout: readDouble(json, ['finalizedSellerPayout']),

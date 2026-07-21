@@ -1,12 +1,29 @@
-import 'package:dio/dio.dart';
-import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/error/firestore_exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/firestore_refs.dart';
+import 'package:chuoi_xanh_viet/core/firebase/notification_writer.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
+import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/forum/domain/entities/forum_post.dart';
 import 'package:chuoi_xanh_viet/features/forum/domain/repositories/forum_repository.dart';
 
+const _pageSize = 15;
+
 class ForumRepositoryImpl implements ForumRepository {
-  ForumRepositoryImpl(this._dio);
-  final Dio _dio;
+  ForumRepositoryImpl({
+    required String? Function() currentUid,
+    required AuthUser? Function() currentUser,
+  }) : _currentUid = currentUid,
+       _currentUser = currentUser;
+
+  // Firestore security rules key on the Firebase Auth uid, never on the
+  // backend's AuthUser.id — for email/password users those are different
+  // id spaces (see AuthRepositoryImpl._ensureFirebaseShadowAccount).
+  final String? Function() _currentUid;
+  final AuthUser? Function() _currentUser;
 
   @override
   Future<PaginatedResult<ForumPost>> getPosts({
@@ -14,24 +31,55 @@ class ForumRepositoryImpl implements ForumRepository {
     String? searchTerm,
   }) async {
     try {
-      final res = await _dio.get('/forum/posts', queryParameters: {
-        'page': page,
-        'limit': 15,
-        if (searchTerm != null && searchTerm.isNotEmpty) 'searchTerm': searchTerm,
-      });
-      return PaginatedResult.fromJson(unwrapData(res.data), ForumPost.fromJson);
+      final snapshot = await _postsQuery().get();
+      final items = _applySearch(
+        snapshot.docs.map((d) => ForumPost.fromJson(_postJson(d))).toList(),
+        searchTerm,
+      );
+      return PaginatedResult(items: items, total: items.length, limit: _pageSize);
     } catch (e) {
-      throw mapDioException(e);
+      throw mapFirestoreException(e);
     }
+  }
+
+  @override
+  Stream<PaginatedResult<ForumPost>> watchPosts({String? searchTerm}) {
+    return _postsQuery().snapshots().map((snapshot) {
+      final items = _applySearch(
+        snapshot.docs.map((d) => ForumPost.fromJson(_postJson(d))).toList(),
+        searchTerm,
+      );
+      return PaginatedResult(items: items, total: items.length, limit: _pageSize);
+    });
+  }
+
+  Query<Map<String, dynamic>> _postsQuery() => FirestoreRefs.forumPostsRef()
+      .orderBy('createdAt', descending: true)
+      .limit(_pageSize);
+
+  List<ForumPost> _applySearch(List<ForumPost> items, String? searchTerm) {
+    if (searchTerm == null || searchTerm.trim().isEmpty) return items;
+    final q = searchTerm.trim().toLowerCase();
+    return items
+        .where(
+          (p) =>
+              p.title.toLowerCase().contains(q) ||
+              p.content.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   @override
   Future<ForumPost> getPost(String postId) async {
     try {
-      final res = await _dio.get('/forum/posts/$postId');
-      return ForumPost.fromJson(asMap(unwrapData(res.data)));
+      final doc = await FirestoreRefs.forumPostsRef().doc(postId).get();
+      if (!doc.exists) {
+        throw const ValidationFailure('Bài viết không tồn tại');
+      }
+      return ForumPost.fromJson(_postJson(doc));
     } catch (e) {
-      throw mapDioException(e);
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
     }
   }
 
@@ -41,37 +89,136 @@ class ForumRepositoryImpl implements ForumRepository {
     required String content,
   }) async {
     try {
-      final res = await _dio.post('/forum/posts', data: {
+      final uid = _currentUid();
+      if (uid == null) {
+        throw const AuthFailure('Cần đăng nhập để đăng bài');
+      }
+      final user = _currentUser();
+      final docRef = FirestoreRefs.forumPostsRef().doc();
+      await docRef.set({
         'title': title,
         'content': content,
+        'authorId': uid,
+        'authorName': user?.fullName ?? 'Người dùng',
+        'authorAvatarUrl': user?.avatarUrl,
+        'authorRole': user?.role,
+        'commentCount': 0,
+        'likeCount': 0,
+        'labels': <String>[],
+        'createdAt': FieldValue.serverTimestamp(),
       });
-      return ForumPost.fromJson(asMap(unwrapData(res.data)));
+      final snap = await docRef.get();
+      return ForumPost.fromJson(_postJson(snap));
     } catch (e) {
-      throw mapDioException(e);
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
     }
   }
 
   @override
   Future<List<ForumComment>> getComments(String postId) async {
     try {
-      final res = await _dio.get('/forum/posts/$postId/comments');
-      final data = unwrapData(res.data);
-      if (data is List) return mapList(data, ForumComment.fromJson);
-      return PaginatedResult.fromJson(data, ForumComment.fromJson).items;
+      final snapshot = await _commentsQuery(postId).get();
+      return snapshot.docs.map((d) => ForumComment.fromJson(_commentJson(d))).toList();
     } catch (e) {
-      throw mapDioException(e);
+      throw mapFirestoreException(e);
     }
   }
 
   @override
+  Stream<List<ForumComment>> watchComments(String postId) {
+    return _commentsQuery(postId).snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((d) => ForumComment.fromJson(_commentJson(d)))
+              .toList(),
+        );
+  }
+
+  Query<Map<String, dynamic>> _commentsQuery(String postId) =>
+      FirestoreRefs.forumCommentsRef(postId).orderBy('createdAt');
+
+  @override
   Future<ForumComment> createComment(String postId, String content) async {
     try {
-      final res = await _dio.post('/forum/posts/$postId/comments', data: {
+      final uid = _currentUid();
+      if (uid == null) {
+        throw const AuthFailure('Cần đăng nhập để bình luận');
+      }
+      final user = _currentUser();
+      final postRef = FirestoreRefs.forumPostsRef().doc(postId);
+      final commentRef = FirestoreRefs.forumCommentsRef(postId).doc();
+      final postSnap = await postRef.get();
+      final batch = FirebaseFirestore.instance.batch();
+      batch.set(commentRef, {
         'content': content,
+        'authorId': uid,
+        'authorName': user?.fullName ?? 'Người dùng',
+        'authorAvatarUrl': user?.avatarUrl,
+        'authorRole': user?.role,
+        'createdAt': FieldValue.serverTimestamp(),
       });
-      return ForumComment.fromJson(asMap(unwrapData(res.data)));
+      batch.update(postRef, {'commentCount': FieldValue.increment(1)});
+      await batch.commit();
+      final postAuthorId = postSnap.data()?['authorId'] as String?;
+      if (postAuthorId != null && postAuthorId != uid) {
+        unawaited(notifyUser(
+          userId: postAuthorId,
+          title: 'Bình luận mới',
+          content:
+              '${user?.fullName ?? 'Người dùng'} đã bình luận về bài viết của bạn',
+          type: 'forum',
+          link: '/consumer/forum/$postId',
+        ));
+      }
+      final snap = await commentRef.get();
+      return ForumComment.fromJson(_commentJson(snap));
     } catch (e) {
-      throw mapDioException(e);
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
     }
+  }
+
+  /// Firestore has no joins, so author info is denormalized straight onto
+  /// each post/comment document. Reshaping it back into the nested
+  /// `author: {...}` map here lets the existing `ForumPost.fromJson`/
+  /// `ForumComment.fromJson` (built for the old REST response shape) be
+  /// reused unchanged, keeping the domain entities storage-agnostic.
+  Map<String, dynamic> _postJson(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return {
+      'id': doc.id,
+      'title': data['title'],
+      'content': data['content'],
+      'author': _authorJson(data),
+      'commentCount': data['commentCount'],
+      'likeCount': data['likeCount'],
+      'createdAt': _isoFromTimestamp(data['createdAt']),
+      'labels': data['labels'],
+    };
+  }
+
+  Map<String, dynamic> _commentJson(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? {};
+    return {
+      'id': doc.id,
+      'content': data['content'],
+      'author': _authorJson(data),
+      'createdAt': _isoFromTimestamp(data['createdAt']),
+    };
+  }
+
+  Map<String, dynamic> _authorJson(Map<String, dynamic> data) => {
+        'id': data['authorId'],
+        'fullName': data['authorName'],
+        'avatarUrl': data['authorAvatarUrl'],
+        'role': data['authorRole'],
+      };
+
+  String? _isoFromTimestamp(dynamic value) {
+    if (value is Timestamp) return value.toDate().toIso8601String();
+    if (value is String) return value;
+    return null;
   }
 }
