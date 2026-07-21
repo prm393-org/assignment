@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_role.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/repositories/auth_repository.dart';
@@ -66,24 +67,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
     final user = session.user;
     if (user != null) await _profileCache.write(user);
+    unawaited(CrashlyticsService.breadcrumb(
+      'auth_session_applied role=${user?.role ?? 'unknown'}',
+    ));
   }
 
   Future<void> bootstrap() async {
+    unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_start'));
     final session = await _repo.restoreSession();
     if (session != null) {
       await _applySession(session);
+      unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_restored'));
     } else {
       state = const AuthState(isBootstrapping: false);
+      unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_guest'));
     }
   }
 
   Future<bool> login(String email, String password) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    unawaited(CrashlyticsService.breadcrumb('auth_login_email_start'));
     try {
       final session = await _repo.login(email: email, password: password);
       await _applySession(session);
+      unawaited(CrashlyticsService.breadcrumb('auth_login_email_ok'));
       return true;
     } catch (e) {
+      unawaited(CrashlyticsService.breadcrumb('auth_login_email_fail'));
       state = state.copyWith(
         isLoading: false,
         errorMessage: e is Failure ? e.message : e.toString(),
@@ -94,15 +104,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<bool> loginWithGoogle() async {
     state = state.copyWith(isLoading: true, clearError: true);
+    unawaited(CrashlyticsService.breadcrumb('auth_login_google_start'));
     try {
       final session = await _repo.loginWithGoogle();
       if (session == null) {
         state = state.copyWith(isLoading: false, clearError: true);
+        unawaited(CrashlyticsService.breadcrumb('auth_login_google_cancel'));
         return false;
       }
       await _applySession(session);
+      unawaited(CrashlyticsService.breadcrumb('auth_login_google_ok'));
       return true;
     } catch (e) {
+      unawaited(CrashlyticsService.breadcrumb('auth_login_google_fail'));
       state = state.copyWith(
         isLoading: false,
         errorMessage: e is Failure ? e.message : e.toString(),
@@ -120,6 +134,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String role,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    unawaited(CrashlyticsService.breadcrumb('auth_register_start role=$role'));
     try {
       final session = await _repo.register(
         email: email,
@@ -130,8 +145,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         role: role,
       );
       await _applySession(session);
+      unawaited(CrashlyticsService.breadcrumb('auth_register_ok'));
       return true;
     } catch (e) {
+      unawaited(CrashlyticsService.breadcrumb('auth_register_fail'));
       state = state.copyWith(
         isLoading: false,
         errorMessage: e is Failure ? e.message : e.toString(),
@@ -181,9 +198,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    unawaited(CrashlyticsService.breadcrumb('auth_logout'));
     await _repo.clearSession();
     state = const AuthState(isBootstrapping: false);
     await _profileCache.clear();
+    unawaited(CrashlyticsService.clearUser());
   }
 
   void setUser(AuthUser user) {

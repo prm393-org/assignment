@@ -9,6 +9,7 @@ import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/cart/presentation/providers/cart_provider.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/providers/marketplace_providers.dart';
+import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 
 class ConsumerHomeScreen extends ConsumerStatefulWidget {
   const ConsumerHomeScreen({super.key});
@@ -32,6 +33,7 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
     final shops = ref.watch(highlightShopsProvider);
     final cartCount = ref.watch(cartCountProvider);
     final region = ref.watch(marketplaceRegionProvider);
+    final unreadNotif = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.canvasSoft,
@@ -60,9 +62,36 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
             icon: Icons.qr_code_scanner_rounded,
             onTap: () => context.push('/consumer/trace/scan'),
           ),
-          _roundAction(
-            icon: Icons.notifications_none_rounded,
-            onTap: () => context.push('/consumer/notifications'),
+          Stack(
+            children: [
+              _roundAction(
+                icon: Icons.notifications_none_rounded,
+                onTap: () => context.push('/consumer/notifications'),
+              ),
+              if (unreadNotif > 0)
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.forest,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints:
+                        const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      unreadNotif > 99 ? '99+' : '$unreadNotif',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           Stack(
             children: [

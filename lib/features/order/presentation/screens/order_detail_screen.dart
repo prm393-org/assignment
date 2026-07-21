@@ -140,6 +140,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(liveOrderStatusProvider(widget.orderId), (prev, next) {
+      final status = next.valueOrNull;
+      if (status == null || status.isEmpty) return;
+      final prevStatus = prev?.valueOrNull;
+      if (prevStatus == status) return;
+      ref.invalidate(orderDetailProvider(widget.orderId));
+      ref.invalidate(myOrdersProvider);
+      ref.invalidate(shopOrdersProvider);
+    });
+    ref.watch(liveOrderStatusProvider(widget.orderId));
+
     final async = ref.watch(orderDetailProvider(widget.orderId));
     return Scaffold(
       appBar: AppBar(title: const Text('Chi tiết đơn')),

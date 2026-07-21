@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/upload/domain/repositories/upload_repository.dart';
 
@@ -49,7 +50,13 @@ class UploadRepositoryImpl implements UploadRepository {
       return mapList(data['items'] ?? data, (item) {
         return readString(item, ['url']);
       }).where((url) => url.isNotEmpty).toList();
-    } catch (e) {
+    } catch (e, st) {
+      await CrashlyticsService.recordNonFatal(
+        e,
+        st,
+        reason: 'upload_fail path=$path count=${paths.length}',
+        keys: {'upload_path': path, 'upload_count': paths.length},
+      );
       throw mapDioException(e);
     }
   }

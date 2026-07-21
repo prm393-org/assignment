@@ -8,6 +8,7 @@ import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
+import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/providers/order_providers.dart';
 
 class FarmerHomeScreen extends ConsumerWidget {
@@ -17,6 +18,7 @@ class FarmerHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final farms = ref.watch(myFarmsProvider);
     final earnings = ref.watch(shopEarningsProvider);
+    final unreadNotif = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -28,9 +30,36 @@ class FarmerHomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton.filledTonal(
-            onPressed: () => context.push('/farmer/notifications'),
-            icon: const Icon(Icons.notifications_none_rounded),
+          Stack(
+            children: [
+              IconButton.filledTonal(
+                onPressed: () => context.push('/farmer/notifications'),
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+              if (unreadNotif > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.forest,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints:
+                        const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      unreadNotif > 99 ? '99+' : '$unreadNotif',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 8),
         ],
