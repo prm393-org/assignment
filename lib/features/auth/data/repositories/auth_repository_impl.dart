@@ -116,6 +116,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final body = await _remote.login(email, password);
       final session = _parseSession(body);
       await persistSession(session);
+      await _ensureFirebaseShadowAccount(email: email, password: password);
       return session;
     } catch (e) {
       if (e is Failure) rethrow;
@@ -196,6 +197,7 @@ class AuthRepositoryImpl implements AuthRepository {
       });
       final session = _parseSession(body);
       await persistSession(session);
+      await _ensureFirebaseShadowAccount(email: email, password: password);
       return session;
     } catch (e) {
       if (e is Failure) rethrow;
@@ -285,6 +287,44 @@ class AuthRepositoryImpl implements AuthRepository {
       await _googleSignIn.signOut();
     } catch (_) {
       // The local app session is already cleared; external sign-out can retry.
+    }
+  }
+
+  /// Backend email/password logins never touch Firebase Auth, so
+  /// `FirebaseAuth.instance.currentUser` stays null for them and Firestore
+  /// security rules (keyed on `request.auth.uid`) can't recognize them.
+  /// This mirrors every successful backend login/register into a Firebase
+  /// Auth account with the same email/password, giving these users a real,
+  /// stable uid too. Never throws — Firestore sync is best-effort and must
+  /// not block the real REST login/register.
+  Future<void> _ensureFirebaseShadowAccount({
+    required String email,
+    required String password,
+  }) async {
+    final firebaseAuth = _firebaseAuth;
+    if (firebaseAuth == null) return;
+    try {
+      await firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        try {
+          await firebaseAuth.createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+        } catch (_) {
+          // Shadow account creation failed; Firestore-backed features for
+          // this user simply stay unsynced until the next successful login.
+        }
+      }
+      // Other codes (wrong-password/invalid-credential) mean the shadow
+      // account's password drifted from the backend's — leave it stale
+      // rather than fail the real login.
+    } catch (_) {
+      // Best-effort; never block the real REST login/register.
     }
   }
 

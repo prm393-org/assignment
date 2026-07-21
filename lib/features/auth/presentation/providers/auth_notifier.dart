@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_role.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/repositories/auth_repository.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_providers.dart';
+import 'package:chuoi_xanh_viet/features/profile/data/local/profile_cache.dart';
 
 class AuthState {
   const AuthState({
@@ -50,15 +53,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   final AuthRepository _repo;
+  final _profileCache = ProfileCache();
+
+  /// Sets [state] from a session and mirrors its user into the
+  /// SharedPreferences profile cache (API stays the source of truth; this
+  /// cache only makes it available before the API call resolves).
+  Future<void> _applySession(AuthSession session) async {
+    state = AuthState(
+      accessToken: session.accessToken,
+      user: session.user,
+      isBootstrapping: false,
+    );
+    final user = session.user;
+    if (user != null) await _profileCache.write(user);
+  }
 
   Future<void> bootstrap() async {
     final session = await _repo.restoreSession();
     if (session != null) {
-      state = AuthState(
-        accessToken: session.accessToken,
-        user: session.user,
-        isBootstrapping: false,
-      );
+      await _applySession(session);
     } else {
       state = const AuthState(isBootstrapping: false);
     }
@@ -68,11 +81,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final session = await _repo.login(email: email, password: password);
-      state = AuthState(
-        accessToken: session.accessToken,
-        user: session.user,
-        isBootstrapping: false,
-      );
+      await _applySession(session);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -91,11 +100,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(isLoading: false, clearError: true);
         return false;
       }
-      state = AuthState(
-        accessToken: session.accessToken,
-        user: session.user,
-        isBootstrapping: false,
-      );
+      await _applySession(session);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -124,11 +129,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         phone: phone,
         role: role,
       );
-      state = AuthState(
-        accessToken: session.accessToken,
-        user: session.user,
-        isBootstrapping: false,
-      );
+      await _applySession(session);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -176,20 +177,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> applySession(AuthSession session) async {
     await _repo.persistSession(session);
-    state = AuthState(
-      accessToken: session.accessToken,
-      user: session.user,
-      isBootstrapping: false,
-    );
+    await _applySession(session);
   }
 
   Future<void> logout() async {
     await _repo.clearSession();
     state = const AuthState(isBootstrapping: false);
+    await _profileCache.clear();
   }
 
   void setUser(AuthUser user) {
     state = state.copyWith(user: user);
+    unawaited(_profileCache.write(user));
   }
 }
 

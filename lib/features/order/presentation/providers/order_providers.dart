@@ -1,12 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/network/dio_client.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
+import 'package:chuoi_xanh_viet/features/order/data/repositories/cached_order_repository.dart';
 import 'package:chuoi_xanh_viet/features/order/data/repositories/order_repository_impl.dart';
 import 'package:chuoi_xanh_viet/features/order/domain/entities/order.dart';
 import 'package:chuoi_xanh_viet/features/order/domain/repositories/order_repository.dart';
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
-  return OrderRepositoryImpl(ref.watch(dioProvider));
+  return CachedOrderRepository(OrderRepositoryImpl(ref.watch(dioProvider)));
 });
 
 final myOrdersProvider =

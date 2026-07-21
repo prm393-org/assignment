@@ -10,6 +10,8 @@ import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/domain/entities/product.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/providers/order_providers.dart';
 import 'package:chuoi_xanh_viet/features/review/presentation/providers/review_providers.dart';
+import 'package:chuoi_xanh_viet/features/shop_manage/data/local/pending_product_draft.dart';
+import 'package:chuoi_xanh_viet/features/shop_manage/presentation/providers/pending_product_draft_queue_provider.dart';
 import 'package:chuoi_xanh_viet/features/shop_manage/presentation/providers/shop_manage_providers.dart';
 
 class ShopDetailManageScreen extends ConsumerStatefulWidget {
@@ -265,41 +267,126 @@ class _ProductsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(managedShopProductsProvider(shopId));
-    return AsyncBody(
-      value: async.asLike,
-      onRetry: () => ref.invalidate(managedShopProductsProvider(shopId)),
-      isEmpty: (list) => list.isEmpty,
-      emptyMessage: 'Chưa có sản phẩm',
-      builder: (list) => ListView.separated(
-        padding: AppSpacing.screen,
-        itemCount: list.length,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-        itemBuilder: (_, i) {
-          final p = list[i];
-          return ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: AppColors.hairline),
-            ),
-            tileColor: AppColors.surface,
-            title: Text(p.name),
-            subtitle: Text(
-              '${Formatters.money(p.price)} · Tồn: ${p.stockQty ?? 0}'
-              '${p.isActive ? '' : ' · Ẩn'}',
-            ),
-            trailing: PopupMenuButton<String>(
-              onSelected: (v) {
-                if (v == 'edit') onEdit(p);
-                if (v == 'delete') onDelete(p);
+    final drafts = ref
+        .watch(pendingProductDraftQueueProvider)
+        .where((d) => d.shopId == shopId)
+        .toList();
+    return Column(
+      children: [
+        if (drafts.isNotEmpty) _DraftsBanner(shopId: shopId, drafts: drafts),
+        Expanded(
+          child: AsyncBody(
+            value: async.asLike,
+            onRetry: () => ref.invalidate(managedShopProductsProvider(shopId)),
+            isEmpty: (list) => list.isEmpty,
+            emptyMessage: 'Chưa có sản phẩm',
+            builder: (list) => ListView.separated(
+              padding: AppSpacing.screen,
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              itemBuilder: (_, i) {
+                final p = list[i];
+                return ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: AppColors.hairline),
+                  ),
+                  tileColor: AppColors.surface,
+                  title: Text(p.name),
+                  subtitle: Text(
+                    '${Formatters.money(p.price)} · Tồn: ${p.stockQty ?? 0}'
+                    '${p.isActive ? '' : ' · Ẩn'}',
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) {
+                      if (v == 'edit') onEdit(p);
+                      if (v == 'delete') onDelete(p);
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Sửa')),
+                      PopupMenuItem(value: 'delete', child: Text('Xoá')),
+                    ],
+                  ),
+                  onTap: () => onEdit(p),
+                );
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                PopupMenuItem(value: 'delete', child: Text('Xoá')),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DraftsBanner extends ConsumerWidget {
+  const _DraftsBanner({required this.shopId, required this.drafts});
+
+  final String shopId;
+  final List<PendingProductDraft> drafts;
+
+  Future<void> _syncAll(BuildContext context, WidgetRef ref) async {
+    final synced = await ref
+        .read(pendingProductDraftQueueProvider.notifier)
+        .flush(ref.read(shopManageRepositoryProvider));
+    ref.invalidate(managedShopProductsProvider(shopId));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          synced > 0
+              ? 'Đã đồng bộ $synced sản phẩm'
+              : 'Chưa đồng bộ được, thử lại sau',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: AppSpacing.screen,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.mint.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text('${drafts.length} sản phẩm nháp (chưa đồng bộ)'),
+                ),
+                TextButton(
+                  onPressed: () => _syncAll(context, ref),
+                  child: const Text('Đồng bộ tất cả'),
+                ),
               ],
             ),
-            onTap: () => onEdit(p),
-          );
-        },
+          ),
+          for (final d in drafts)
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: AppColors.hairline),
+              ),
+              tileColor: AppColors.surfaceElevated,
+              title: Text(
+                d.name != null && d.name!.isNotEmpty ? d.name! : 'Sản phẩm nháp',
+              ),
+              subtitle: Text(
+                '${Formatters.money(d.price)} · Tồn: ${d.stockQty ?? 0}',
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => ref
+                    .read(pendingProductDraftQueueProvider.notifier)
+                    .remove(d.localId),
+              ),
+            ),
+        ],
       ),
     );
   }

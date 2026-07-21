@@ -7,8 +7,10 @@ import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/features/farm/data/local/pending_diary_entry.dart';
 import 'package:chuoi_xanh_viet/features/farm/domain/entities/diary_entry.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
+import 'package:chuoi_xanh_viet/features/farm/presentation/providers/pending_diary_queue_provider.dart';
 import 'package:chuoi_xanh_viet/features/upload/presentation/providers/upload_providers.dart';
 
 class DiaryDashboardScreen extends ConsumerStatefulWidget {
@@ -29,6 +31,7 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
   String? _imageUrl;
   bool _saving = false;
   bool _uploading = false;
+  bool _syncing = false;
 
   @override
   void initState() {
@@ -71,12 +74,13 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
       return;
     }
     setState(() => _saving = true);
+    final eventDate = DateTime.now().toIso8601String().substring(0, 10);
     try {
       final body = <String, dynamic>{
         'seasonId': _seasonId,
         'farmId': _farmId,
         'eventType': _eventType,
-        'eventDate': DateTime.now().toIso8601String().substring(0, 10),
+        'eventDate': eventDate,
         'description': _desc.text.trim(),
         if (_imageUrl != null)
           'extraData': {
@@ -95,15 +99,20 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
           // Attachment endpoint may be missing; extraData already sent.
         }
       }
-      _desc.clear();
-      setState(() => _imageUrl = null);
-      ref.invalidate(farmDiariesProvider(_farmId!));
-      ref.invalidate(seasonDiariesProvider(_seasonId!));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã ghi nhật ký')),
-      );
-      _tabs.animateTo(1);
+      _onSaved('Đã ghi nhật ký');
+    } on NetworkFailure {
+      await ref.read(pendingDiaryQueueProvider.notifier).enqueue(
+            PendingDiaryEntry(
+              localId: DateTime.now().microsecondsSinceEpoch.toString(),
+              farmId: _farmId!,
+              seasonId: _seasonId!,
+              eventType: _eventType,
+              eventDate: eventDate,
+              description: _desc.text.trim(),
+              imageUrl: _imageUrl,
+            ),
+          );
+      _onSaved('Đã lưu offline, sẽ đồng bộ khi có mạng');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,6 +123,34 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
     }
   }
 
+  void _onSaved(String message) {
+    _desc.clear();
+    setState(() => _imageUrl = null);
+    ref.invalidate(farmDiariesProvider(_farmId!));
+    ref.invalidate(seasonDiariesProvider(_seasonId!));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    _tabs.animateTo(1);
+  }
+
+  Future<void> _syncPending() async {
+    setState(() => _syncing = true);
+    final synced = await ref
+        .read(pendingDiaryQueueProvider.notifier)
+        .flush(ref.read(farmRepositoryProvider));
+    if (_farmId != null) ref.invalidate(farmDiariesProvider(_farmId!));
+    if (_seasonId != null) ref.invalidate(seasonDiariesProvider(_seasonId!));
+    if (!mounted) return;
+    setState(() => _syncing = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          synced > 0 ? 'Đã đồng bộ $synced mục' : 'Chưa đồng bộ được, thử lại sau',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final farmsAsync = ref.watch(myFarmsProvider);
@@ -122,6 +159,7 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
         : ref.watch(farmSeasonsProvider(_farmId!));
     final diariesAsync =
         _farmId == null ? null : ref.watch(farmDiariesProvider(_farmId!));
+    final pending = ref.watch(pendingDiaryQueueProvider);
 
     final entryCount = diariesAsync?.valueOrNull?.items.length ?? 0;
     final seasonCount = seasonsAsync?.valueOrNull?.length ?? 0;
@@ -144,6 +182,29 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (pending.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.mint.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text('${pending.length} nhật ký chưa đồng bộ'),
+                        ),
+                        TextButton(
+                          onPressed: _syncing ? null : _syncPending,
+                          child: Text(
+                            _syncing ? 'Đang đồng bộ...' : 'Đồng bộ ngay',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
                 AsyncBody(
                   value: farmsAsync.asLike,
                   onRetry: () => ref.invalidate(myFarmsProvider),
