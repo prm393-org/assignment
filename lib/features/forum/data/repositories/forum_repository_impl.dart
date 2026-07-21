@@ -233,8 +233,10 @@ class ForumRepositoryImpl implements ForumRepository {
       final postRef = FirestoreRefs.forumPostsRef().doc(postId);
       final commentRef = FirestoreRefs.forumCommentsRef(postId).doc();
       final postSnap = await postRef.get();
-      final batch = FirebaseFirestore.instance.batch();
-      batch.set(commentRef, {
+      // Comment create and commentCount bump must not share one batch:
+      // until rules allow non-authors to bump commentCount, a batch would
+      // fail the whole write with permission-denied.
+      await commentRef.set({
         'content': content,
         'authorId': uid,
         'authorName': user?.fullName ?? 'Người dùng',
@@ -242,8 +244,11 @@ class ForumRepositoryImpl implements ForumRepository {
         'authorRole': user?.role,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      batch.update(postRef, {'commentCount': FieldValue.increment(1)});
-      await batch.commit();
+      try {
+        await postRef.update({'commentCount': FieldValue.increment(1)});
+      } catch (_) {
+        // Best-effort counter; comment already persisted.
+      }
       final postAuthorId = postSnap.data()?['authorId'] as String?;
       if (postAuthorId != null && postAuthorId != uid) {
         unawaited(notifyUser(
@@ -315,10 +320,12 @@ class ForumRepositoryImpl implements ForumRepository {
       if (authorId != uid) {
         throw const AuthFailure('Chỉ xóa được bình luận của bạn');
       }
-      final batch = FirebaseFirestore.instance.batch();
-      batch.delete(commentRef);
-      batch.update(postRef, {'commentCount': FieldValue.increment(-1)});
-      await batch.commit();
+      await commentRef.delete();
+      try {
+        await postRef.update({'commentCount': FieldValue.increment(-1)});
+      } catch (_) {
+        // Best-effort counter; comment already deleted.
+      }
     } catch (e) {
       if (e is Failure) rethrow;
       throw mapFirestoreException(e);

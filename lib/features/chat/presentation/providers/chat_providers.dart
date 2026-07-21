@@ -13,8 +13,10 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 });
 
 final conversationsProvider =
-    FutureProvider.autoDispose<List<Conversation>>((ref) {
-  return ref.watch(chatRepositoryProvider).listConversations();
+    FutureProvider.autoDispose<List<Conversation>>((ref) async {
+  final meId = ref.watch(authNotifierProvider).user?.id;
+  final list = await ref.watch(chatRepositoryProvider).listConversations();
+  return list.map((c) => c.resolvedFor(meId)).toList();
 });
 
 final chatMessagesProvider =
@@ -66,8 +68,32 @@ class ChatSocketController {
     final map = asMap(data is Map ? data : unwrapData(data));
     if (map.isEmpty) return;
     final nested = asMap(map['message'] ?? map['data']);
-    final json = nested.isNotEmpty ? nested : map;
+    final json = Map<String, dynamic>.from(nested.isNotEmpty ? nested : map);
+    // Outer envelope often carries conversationId while nested message does not.
+    if (readString(json, ['conversationId', 'conversation_id']).isEmpty) {
+      final outerId = readString(map, ['conversationId', 'conversation_id']);
+      if (outerId.isNotEmpty) {
+        json['conversationId'] = outerId;
+      }
+    }
+    if (readString(json, [
+      'senderUserId',
+      'sender_user_id',
+      'senderId',
+      'sender_id',
+    ]).isEmpty) {
+      final outerSender = readString(map, [
+        'senderUserId',
+        'sender_user_id',
+        'senderId',
+        'sender_id',
+      ]);
+      if (outerSender.isNotEmpty) {
+        json['senderUserId'] = outerSender;
+      }
+    }
     final message = ChatMessage.fromJson(json);
+    if (message.id.isEmpty || message.content.isEmpty) return;
     if (_activeConversationId != null &&
         message.conversationId.isNotEmpty &&
         message.conversationId != _activeConversationId) {

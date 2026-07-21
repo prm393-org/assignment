@@ -61,10 +61,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref
+      final sent = await ref
           .read(chatRepositoryProvider)
           .sendMessage(widget.conversationId, text);
       _input.clear();
+      if (!_liveMessages.any((m) => m.id == sent.id)) {
+        setState(() => _liveMessages.add(sent));
+      }
       ref.invalidate(chatMessagesProvider(widget.conversationId));
       ref.invalidate(conversationsProvider);
     } catch (e) {
@@ -98,8 +101,20 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(chatMessagesProvider(widget.conversationId));
     final myId = ref.watch(authNotifierProvider).user?.id;
+    final peerName = ref
+        .watch(conversationsProvider)
+        .valueOrNull
+        ?.where((c) => c.id == widget.conversationId)
+        .map((c) => c.peerName)
+        .firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: const Text('Trò chuyện')),
+      appBar: AppBar(
+        title: Text(
+          peerName != null && peerName.trim().isNotEmpty
+              ? peerName
+              : 'Trò chuyện',
+        ),
+      ),
       body: Column(
         children: [
           Expanded(

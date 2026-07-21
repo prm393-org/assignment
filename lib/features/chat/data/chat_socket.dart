@@ -24,12 +24,28 @@ class ChatSocket {
           .setTransports(['websocket', 'polling'])
           .disableAutoConnect()
           .setAuth({'token': accessToken})
+          .enableReconnection()
           .build(),
     );
     if (_messageHandler != null) {
       _socket!.on('chat:message', _messageHandler!);
     }
+    _socket!.onConnect((_) => _rejoinIfNeeded());
+    _socket!.onReconnect((_) => _rejoinIfNeeded());
     _socket!.connect();
+  }
+
+  void _rejoinIfNeeded() {
+    final id = _joinedConversationId;
+    if (id == null || id.isEmpty) return;
+    _emitJoin(id);
+  }
+
+  void _emitJoin(String conversationId) {
+    _socket?.emit('chat:join', {
+      'conversationId': conversationId,
+      'conversation_id': conversationId,
+    });
   }
 
   void disconnect() {
@@ -45,10 +61,10 @@ class ChatSocket {
 
   void join(String conversationId) {
     _joinedConversationId = conversationId;
-    _socket?.emit('chat:join', {
-      'conversationId': conversationId,
-      'conversation_id': conversationId,
-    });
+    if (_socket?.connected == true) {
+      _emitJoin(conversationId);
+    }
+    // If not connected yet, onConnect / onReconnect will emit join.
   }
 
   void leave(String conversationId) {

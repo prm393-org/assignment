@@ -34,17 +34,24 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
     final region = ref.watch(marketplaceRegionProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.canvasSoft,
       appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        surfaceTintColor: Colors.transparent,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Xin chào 👋',
-              style: Theme.of(context).textTheme.bodySmall,
+              'Xin chào',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.muted,
+                  ),
             ),
             Text(
               'Chuỗi Xanh Việt',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ],
         ),
@@ -110,9 +117,26 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
             const SizedBox(height: AppSpacing.lg),
             TextField(
               controller: _search,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Tìm sản phẩm, gian hàng...',
-                prefixIcon: Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: AppColors.surface,
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.muted,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.hairline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.hairline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.mintDeep),
+                ),
               ),
               textInputAction: TextInputAction.search,
               onSubmitted: (v) {
@@ -120,7 +144,9 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
                 if (q.isEmpty) {
                   context.go('/consumer/marketplace');
                 } else {
-                  context.push('/consumer/marketplace?q=${Uri.encodeComponent(q)}');
+                  context.push(
+                    '/consumer/marketplace?q=${Uri.encodeComponent(q)}',
+                  );
                 }
               },
             ),
@@ -133,9 +159,21 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) {
                   final r = marketplaceRegions[i];
-                  return ChoiceChip(
+                  final selected = region == r;
+                  return FilterChip(
                     label: Text(r),
-                    selected: region == r,
+                    selected: selected,
+                    showCheckmark: false,
+                    selectedColor: AppColors.forest,
+                    labelStyle: TextStyle(
+                      color: selected ? AppColors.onPrimary : AppColors.body,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    side: BorderSide(
+                      color: selected ? AppColors.forest : AppColors.hairline,
+                    ),
+                    backgroundColor: AppColors.surface,
                     onSelected: (_) => ref
                         .read(marketplaceRegionProvider.notifier)
                         .setRegion(r),
@@ -187,7 +225,7 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
               isEmpty: (list) => list.isEmpty,
               emptyMessage: 'Chưa có gian hàng nổi bật',
               builder: (list) => SizedBox(
-                height: 168,
+                height: 156,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: list.length,
@@ -195,66 +233,93 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
                   itemBuilder: (_, i) {
                     final s = list[i];
                     return SizedBox(
-                      width: 220,
-                      child: SurfaceCard(
-                        padding: const EdgeInsets.all(12),
-                        onTap: () => context.push('/consumer/shop/${s.id}'),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      width: 200,
+                      child: Material(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          onTap: () => context.push('/consumer/shop/${s.id}'),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Ink(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AppColors.hairline),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                AppNetworkImage(
-                                  url: s.avatarUrl,
-                                  width: 44,
-                                  height: 44,
-                                  borderRadius: BorderRadius.circular(12),
+                                Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: AppNetworkImage(
+                                        url: s.avatarUrl,
+                                        width: 44,
+                                        height: 44,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        s.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                    if (s.isVerified)
+                                      const Icon(
+                                        Icons.verified_rounded,
+                                        size: 16,
+                                        color: AppColors.success,
+                                      ),
+                                  ],
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    s.name,
+                                const Spacer(),
+                                if (s.averageRating != null)
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.star_rounded,
+                                        size: 14,
+                                        color: AppColors.warning,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '${s.averageRating!.toStringAsFixed(1)} (${s.reviewCount})',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                if (s.province != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    [
+                                      if (s.district != null) s.district,
+                                      s.province,
+                                    ].whereType<String>().join(', '),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style:
-                                        Theme.of(context).textTheme.titleSmall,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: AppColors.muted),
                                   ),
-                                ),
-                                if (s.isVerified)
-                                  const Icon(
-                                    Icons.verified,
-                                    size: 16,
-                                    color: AppColors.success,
-                                  ),
+                                ],
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            if (s.averageRating != null)
-                              Text(
-                                '★ ${s.averageRating!.toStringAsFixed(1)} (${s.reviewCount})',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: AppColors.warning),
-                              ),
-                            if (s.province != null)
-                              Text(
-                                [
-                                  if (s.district != null) s.district,
-                                  s.province,
-                                ].whereType<String>().join(', '),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            if (s.certifications.isNotEmpty)
-                              Text(
-                                s.certifications.take(2).join(' · '),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                          ],
+                          ),
                         ),
                       ),
                     );
@@ -280,9 +345,9 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
                 itemCount: list.length,
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.62,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.68,
                 ),
                 itemBuilder: (_, i) {
                   final p = list[i];
@@ -321,7 +386,7 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: IconButton.filledTonal(
         style: IconButton.styleFrom(
-          backgroundColor: AppColors.surface,
+          backgroundColor: AppColors.surfaceElevated,
           foregroundColor: AppColors.ink,
         ),
         onPressed: onTap,
