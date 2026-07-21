@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "833822181033-ctsi429luh7u635uo31cu4tnrd3m0eon.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.chuoixanh.chuoi_xanh_viet",
+            "certificate_hash": "f47964464729a70ff9bce4394b874d2a2b795d40"
+          }
+        },
+        {
           "client_id": "833822181033-i7hntapp385deu3okl59phqhov1id010.apps.googleusercontent.com",
           "client_type": 3
         }

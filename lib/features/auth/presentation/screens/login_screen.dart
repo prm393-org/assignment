@@ -39,6 +39,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    final ok = await ref.read(authNotifierProvider.notifier).loginWithGoogle();
+    if (!mounted) return;
+    if (ok) {
+      context.go(roleHomePath(ref.read(authNotifierProvider).role));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authNotifierProvider);
@@ -145,6 +153,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      child: Text(
+                        'Hoặc',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton.icon(
+                  onPressed: auth.isLoading ? null : _signInWithGoogle,
+                  icon: const Text(
+                    'G',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  label: const Text('Tiếp tục với Google'),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 TextButton(
                   onPressed: () => context.push('/forgot-password'),
                   child: const Text('Quên mật khẩu?'),

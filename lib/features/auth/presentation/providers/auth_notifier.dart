@@ -83,6 +83,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> loginWithGoogle() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final session = await _repo.loginWithGoogle();
+      if (session == null) {
+        state = state.copyWith(isLoading: false, clearError: true);
+        return false;
+      }
+      state = AuthState(
+        accessToken: session.accessToken,
+        user: session.user,
+        isBootstrapping: false,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e is Failure ? e.message : e.toString(),
+      );
+      return false;
+    }
+  }
+
   Future<bool> register({
     required String email,
     required String password,
