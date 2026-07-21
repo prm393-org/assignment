@@ -141,25 +141,21 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       final result = await firebaseAuth.signInWithCredential(credential);
       final firebaseUser = result.user;
-      final idToken = await firebaseUser?.getIdToken();
-      if (firebaseUser == null || idToken == null || idToken.isEmpty) {
-        throw const AuthFailure('Không nhận được thông tin từ Google');
+      final email = firebaseUser?.email?.trim() ?? '';
+      if (firebaseUser == null || email.isEmpty) {
+        throw const AuthFailure('Tài khoản Google không có email');
       }
 
-      final session = AuthSession(
-        accessToken: idToken,
-        user: AuthUser(
-          id: firebaseUser.uid,
-          fullName:
-              firebaseUser.displayName ??
-              firebaseUser.email?.split('@').first ??
-              'Người dùng Google',
-          email: firebaseUser.email ?? '',
-          phone: firebaseUser.phoneNumber ?? '',
-          role: 'consumer',
-          status: 'active',
-          avatarUrl: firebaseUser.photoURL,
-        ),
+      // Backend only accepts its own HS256 JWT. Bridge Google → REST by
+      // login/register with a stable password derived from Firebase uid.
+      final session = await _bridgeGoogleToBackend(
+        firebaseUid: firebaseUser.uid,
+        email: email,
+        fullName:
+            firebaseUser.displayName?.trim().isNotEmpty == true
+                ? firebaseUser.displayName!.trim()
+                : email.split('@').first,
+        avatarUrl: firebaseUser.photoURL,
       );
       await persistSession(session);
       return session;
@@ -175,6 +171,88 @@ class AuthRepositoryImpl implements AuthRepository {
       if (e is Failure) rethrow;
       throw const AuthFailure('Không thể đăng nhập bằng Google');
     }
+  }
+
+  /// Exchanges a Firebase Google session for a backend JWT without a BE
+  /// Google endpoint: login with a deterministic password, or register once.
+  Future<AuthSession> _bridgeGoogleToBackend({
+    required String firebaseUid,
+    required String email,
+    required String fullName,
+    String? avatarUrl,
+  }) async {
+    final password = _googleBridgePassword(firebaseUid);
+
+    try {
+      final body = await _remote.login(email, password);
+      return _parseSession(body);
+    } catch (_) {
+      // Fall through to register when login fails (new Google user).
+    }
+
+    Failure? lastFailure;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      try {
+        final body = await _remote.register({
+          'email': email,
+          'password': password,
+          'confirm_password': password,
+          'full_name': fullName,
+          'phone': _googleBridgePhone(firebaseUid, attempt),
+          'role': 'consumer',
+        });
+        var session = _parseSession(body);
+        authTokenHolder.accessToken = session.accessToken;
+        if (avatarUrl != null &&
+            avatarUrl.isNotEmpty &&
+            (session.user?.avatarUrl == null ||
+                session.user!.avatarUrl!.isEmpty)) {
+          try {
+            final raw = await _remote.updateMe({'avatarUrl': avatarUrl});
+            session = AuthSession(
+              accessToken: session.accessToken,
+              user: AuthUser.fromJson(raw),
+            );
+          } catch (_) {
+            // Avatar sync is best-effort.
+          }
+        }
+        return session;
+      } catch (e) {
+        final failure = e is Failure ? e : mapDioException(e);
+        lastFailure = failure;
+        final msg = failure.message.toLowerCase();
+        if (msg.contains('email') &&
+            (msg.contains('exist') || msg.contains('sử dụng'))) {
+          throw const AuthFailure(
+            'Email này đã đăng ký bằng mật khẩu. '
+            'Hãy đăng nhập bằng email/mật khẩu.',
+          );
+        }
+        if ((msg.contains('phone') || msg.contains('điện thoại')) &&
+            (msg.contains('exist') || msg.contains('sử dụng'))) {
+          continue;
+        }
+        throw failure;
+      }
+    }
+
+    throw lastFailure ??
+        const AuthFailure('Không thể tạo tài khoản từ Google');
+  }
+
+  /// Stable backend password for a Google uid (assignment bridge only).
+  static String _googleBridgePassword(String firebaseUid) =>
+      'Gx_${firebaseUid}_CxV2026!';
+
+  /// Unique synthetic phone (8–20 chars) derived from uid + attempt.
+  static String _googleBridgePhone(String firebaseUid, int attempt) {
+    final digits = StringBuffer();
+    for (final unit in firebaseUid.codeUnits) {
+      digits.write(unit % 10);
+    }
+    final raw = '${digits.toString()}$attempt'.padRight(9, '0');
+    return '09${raw.substring(0, 9)}';
   }
 
   @override
@@ -257,15 +335,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthSession?> restoreSession() async {
-    var session = await _local.read();
-    final firebaseUser = _firebaseAuth?.currentUser;
-    if (session?.user?.id == firebaseUser?.uid) {
-      final refreshedToken = await firebaseUser?.getIdToken();
-      if (refreshedToken != null && refreshedToken.isNotEmpty) {
-        session = session!.copyWith(accessToken: refreshedToken);
-        await _local.save(session);
-      }
-    }
+    // Always restore the backend JWT. Never replace it with a Firebase
+    // idToken (RS256) — the REST API only accepts HS256 tokens.
+    final session = await _local.read();
     if (session != null) {
       authTokenHolder.accessToken = session.accessToken;
     }
