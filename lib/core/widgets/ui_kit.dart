@@ -187,6 +187,10 @@ class ProductCard extends StatelessWidget {
     required this.price,
     this.imageUrl,
     this.subtitle,
+    this.rating,
+    this.reviewCount,
+    this.isVerified = false,
+    this.outOfStock = false,
     this.onTap,
   });
 
@@ -194,6 +198,10 @@ class ProductCard extends StatelessWidget {
   final num price;
   final String? imageUrl;
   final String? subtitle;
+  final double? rating;
+  final int? reviewCount;
+  final bool isVerified;
+  final bool outOfStock;
   final VoidCallback? onTap;
 
   @override
@@ -214,33 +222,50 @@ class ProductCard extends StatelessWidget {
                     top: Radius.circular(20),
                   ),
                 ),
-                Positioned(
-                  left: 10,
-                  top: 10,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.verified, size: 12, color: AppColors.forest),
-                        SizedBox(width: 4),
-                        Text(
-                          'Trace',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.forest,
+                if (isVerified)
+                  Positioned(
+                    left: 10,
+                    top: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified, size: 12, color: AppColors.forest),
+                          SizedBox(width: 4),
+                          Text(
+                            'Đã xác minh',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.forest,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                if (outOfStock)
+                  Positioned.fill(
+                    child: Container(
+                      alignment: Alignment.center,
+                      color: Colors.black45,
+                      child: const Text(
+                        'HẾT HÀNG',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -262,6 +287,16 @@ class ProductCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (rating != null && (reviewCount ?? 0) > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '★ ${rating!.toStringAsFixed(1)} (${reviewCount ?? 0})',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
                 const SizedBox(height: 8),

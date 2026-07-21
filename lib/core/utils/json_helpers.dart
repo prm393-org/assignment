@@ -76,12 +76,21 @@ class PaginatedResult<T> {
     this.total = 0,
     this.page = 1,
     this.limit = 20,
+    this.totalPages,
   });
 
   final List<T> items;
   final int total;
   final int page;
   final int limit;
+  final int? totalPages;
+
+  int get pages {
+    if (totalPages != null && totalPages! > 0) return totalPages!;
+    if (limit <= 0) return 1;
+    if (total <= 0) return items.isEmpty ? 1 : 1;
+    return ((total + limit - 1) ~/ limit).clamp(1, 9999);
+  }
 
   factory PaginatedResult.fromJson(
     dynamic raw,
@@ -89,12 +98,17 @@ class PaginatedResult<T> {
   ) {
     final map = asMap(raw);
     final meta = asMap(map['meta'] ?? map['pagination']);
+    final source = meta.isNotEmpty ? meta : map;
     final itemsRaw = map['items'] ?? map['data'] ?? map['results'] ?? raw;
+    final limit = readInt(source, ['limit'], 20);
+    final total = readInt(source, ['total', 'totalCount', 'reviewCount']);
+    final parsedPages = readInt(source, ['totalPages', 'total_pages']);
     return PaginatedResult(
       items: mapList(itemsRaw, mapper),
-      total: readInt(meta.isNotEmpty ? meta : map, ['total', 'totalCount']),
-      page: readInt(meta.isNotEmpty ? meta : map, ['page'], 1),
-      limit: readInt(meta.isNotEmpty ? meta : map, ['limit'], 20),
+      total: total,
+      page: readInt(source, ['page'], 1),
+      limit: limit,
+      totalPages: parsedPages > 0 ? parsedPages : null,
     );
   }
 }

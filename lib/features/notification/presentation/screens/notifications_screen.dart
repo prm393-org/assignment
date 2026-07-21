@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
+import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
+import 'package:chuoi_xanh_viet/features/notification/presentation/notification_navigation.dart';
 import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -14,6 +17,7 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(notificationsProvider);
+    final role = ref.watch(authNotifierProvider).role;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Thông báo'),
@@ -46,6 +50,9 @@ class NotificationsScreen extends ConsumerWidget {
                   await ref.read(notificationRepositoryProvider).markRead(n.id);
                   ref.invalidate(notificationsProvider);
                 }
+                if (!context.mounted) return;
+                final route = resolveNotificationRoute(n.link, role: role);
+                if (route != null) context.push(route);
               },
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

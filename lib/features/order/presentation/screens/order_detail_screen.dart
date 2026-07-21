@@ -53,45 +53,81 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     }
   }
 
-  Future<void> _review(String productId) async {
-    final ratingCtrl = TextEditingController(text: '5');
-    final commentCtrl = TextEditingController();
+  Future<void> _reviewDialog({
+    required String productId,
+    String? reviewId,
+    int initialRating = 5,
+    String? initialComment,
+  }) async {
+    var rating = initialRating.clamp(1, 5);
+    final commentCtrl = TextEditingController(text: initialComment ?? '');
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Đánh giá sản phẩm'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: ratingCtrl,
-              decoration: const InputDecoration(labelText: 'Số sao (1-5)'),
-              keyboardType: TextInputType.number,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(reviewId == null ? 'Đánh giá sản phẩm' : 'Sửa đánh giá'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 1; i <= 5; i++)
+                    IconButton(
+                      onPressed: () => setLocal(() => rating = i),
+                      icon: Icon(
+                        i <= rating ? Icons.star : Icons.star_border,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                ],
+              ),
+              TextField(
+                controller: commentCtrl,
+                decoration: const InputDecoration(labelText: 'Nhận xét'),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Huỷ'),
             ),
-            TextField(
-              controller: commentCtrl,
-              decoration: const InputDecoration(labelText: 'Nhận xét'),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(reviewId == null ? 'Gửi' : 'Lưu'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Gửi')),
-        ],
       ),
     );
     if (ok != true) return;
     try {
-      await ref.read(reviewRepositoryProvider).createReview(
-            orderId: widget.orderId,
-            productId: productId,
-            rating: int.tryParse(ratingCtrl.text) ?? 5,
-            comment: commentCtrl.text.trim().isEmpty ? null : commentCtrl.text.trim(),
-          );
+      final comment =
+          commentCtrl.text.trim().isEmpty ? null : commentCtrl.text.trim();
+      if (reviewId == null) {
+        await ref.read(reviewRepositoryProvider).createReview(
+              orderId: widget.orderId,
+              productId: productId,
+              rating: rating,
+              comment: comment,
+            );
+      } else {
+        await ref.read(reviewRepositoryProvider).updateReview(
+              reviewId: reviewId,
+              rating: rating,
+              comment: comment,
+            );
+      }
       ref.invalidate(orderDetailProvider(widget.orderId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã gửi đánh giá')),
+          SnackBar(
+            content: Text(
+              reviewId == null ? 'Đã gửi đánh giá' : 'Đã cập nhật đánh giá',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -115,11 +151,16 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           return ListView(
             padding: AppSpacing.screen,
             children: [
-              Text('Trạng thái: ${o.status}',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Trạng thái: ${o.status}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               Text(Formatters.dateTime(o.createdAt)),
               const SizedBox(height: AppSpacing.lg),
-              Text(o.shopName ?? '', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                o.shopName ?? '',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               Text('${o.shippingName} · ${o.shippingPhone}'),
               Text(o.shippingAddress ?? ''),
               const Divider(height: 32),
@@ -127,22 +168,31 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(item.productName),
-                  subtitle: Text('${item.qty} × ${Formatters.money(item.unitPrice)}'),
-                  trailing: (!widget.isSeller &&
-                          o.status == 'delivered' &&
-                          item.myReviewId == null)
+                  subtitle: Text(
+                    '${item.qty} × ${Formatters.money(item.unitPrice)}'
+                    '${item.myReviewRating != null ? ' · ★ ${item.myReviewRating}' : ''}',
+                  ),
+                  trailing: !widget.isSeller && o.status == 'delivered'
                       ? TextButton(
-                          onPressed: () => _review(item.productId),
-                          child: const Text('Đánh giá'),
+                          onPressed: () => _reviewDialog(
+                            productId: item.productId,
+                            reviewId: item.myReviewId,
+                            initialRating: item.myReviewRating ?? 5,
+                          ),
+                          child: Text(
+                            item.myReviewId == null ? 'Đánh giá' : 'Sửa đánh giá',
+                          ),
                         )
                       : Text(Formatters.money(item.lineTotal)),
                 ),
               const Divider(),
-              Text('Tổng (gồm ship): ${Formatters.money(total)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.forest,
-                  )),
+              Text(
+                'Tổng (gồm ship): ${Formatters.money(total)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.forest,
+                ),
+              ),
               const SizedBox(height: AppSpacing.xl),
               if (!widget.isSeller && o.status == 'pending')
                 OutlinedButton(
