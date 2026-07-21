@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/network/auth_token_holder.dart';
@@ -92,11 +95,17 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
     required AuthRemoteDataSource remote,
     required AuthLocalDataSource local,
-  })  : _remote = remote,
-        _local = local;
+    required firebase_auth.FirebaseAuth? firebaseAuth,
+    required GoogleSignIn googleSignIn,
+  }) : _remote = remote,
+       _local = local,
+       _firebaseAuth = firebaseAuth,
+       _googleSignIn = googleSignIn;
 
   final AuthRemoteDataSource _remote;
   final AuthLocalDataSource _local;
+  final firebase_auth.FirebaseAuth? _firebaseAuth;
+  final GoogleSignIn _googleSignIn;
 
   @override
   Future<AuthSession> login({
@@ -111,6 +120,59 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (e) {
       if (e is Failure) rethrow;
       throw mapDioException(e);
+    }
+  }
+
+  @override
+  Future<AuthSession?> loginWithGoogle() async {
+    try {
+      final firebaseAuth = _firebaseAuth;
+      if (firebaseAuth == null) {
+        throw const AuthFailure('Firebase chưa được khởi tạo');
+      }
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      final googleAuth = await googleUser.authentication;
+      final credential = firebase_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final result = await firebaseAuth.signInWithCredential(credential);
+      final firebaseUser = result.user;
+      final idToken = await firebaseUser?.getIdToken();
+      if (firebaseUser == null || idToken == null || idToken.isEmpty) {
+        throw const AuthFailure('Không nhận được thông tin từ Google');
+      }
+
+      final session = AuthSession(
+        accessToken: idToken,
+        user: AuthUser(
+          id: firebaseUser.uid,
+          fullName:
+              firebaseUser.displayName ??
+              firebaseUser.email?.split('@').first ??
+              'Người dùng Google',
+          email: firebaseUser.email ?? '',
+          phone: firebaseUser.phoneNumber ?? '',
+          role: 'consumer',
+          status: 'active',
+          avatarUrl: firebaseUser.photoURL,
+        ),
+      );
+      await persistSession(session);
+      return session;
+    } on PlatformException catch (e) {
+      if (e.code == GoogleSignIn.kSignInCanceledError) return null;
+      if (e.code == GoogleSignIn.kNetworkError) {
+        throw const NetworkFailure();
+      }
+      throw const AuthFailure('Không thể đăng nhập bằng Google');
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw AuthFailure(e.message ?? 'Firebase không thể xác thực tài khoản');
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw const AuthFailure('Không thể đăng nhập bằng Google');
     }
   }
 
@@ -193,7 +255,15 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthSession?> restoreSession() async {
-    final session = await _local.read();
+    var session = await _local.read();
+    final firebaseUser = _firebaseAuth?.currentUser;
+    if (session?.user?.id == firebaseUser?.uid) {
+      final refreshedToken = await firebaseUser?.getIdToken();
+      if (refreshedToken != null && refreshedToken.isNotEmpty) {
+        session = session!.copyWith(accessToken: refreshedToken);
+        await _local.save(session);
+      }
+    }
     if (session != null) {
       authTokenHolder.accessToken = session.accessToken;
     }
@@ -210,6 +280,12 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> clearSession() async {
     authTokenHolder.accessToken = null;
     await _local.clear();
+    try {
+      await _firebaseAuth?.signOut();
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // The local app session is already cleared; external sign-out can retry.
+    }
   }
 
   AuthSession _parseSession(Map<String, dynamic> body) {
