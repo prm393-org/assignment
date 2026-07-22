@@ -14,8 +14,8 @@ abstract final class OrderLiveSync {
       await RtdbRefs.orderStatus(orderId).set({
         'status': status,
         'updatedAt': ServerValue.timestamp,
-        if (buyerBackendUserId != null) 'buyerUserId': buyerBackendUserId,
-        if (sellerBackendUserId != null) 'sellerUserId': sellerBackendUserId,
+        'buyerUserId': ?buyerBackendUserId,
+        'sellerUserId': ?sellerBackendUserId,
       });
     } catch (_) {}
   }

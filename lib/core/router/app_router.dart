@@ -55,7 +55,7 @@ final _rootKey = GlobalKey<NavigatorState>();
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
-  ref.listen<AuthState>(authNotifierProvider, (_, __) {
+  ref.listen<AuthState>(authNotifierProvider, (_, _) {
     refresh.value++;
   });
   ref.onDispose(refresh.dispose);
@@ -111,12 +111,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+      GoRoute(path: '/', builder: (_, _) => const SplashScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
       GoRoute(
         path: '/forgot-password',
-        builder: (_, __) => const ForgotPasswordScreen(),
+        builder: (_, _) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/reset-password',
@@ -126,18 +126,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/register-farmer-applicant',
-        builder: (_, __) => const RegisterFarmerApplicantScreen(),
+        builder: (_, _) => const RegisterFarmerApplicantScreen(),
       ),
       GoRoute(
         path: '/welcome',
-        builder: (_, __) => const WelcomeScreen(),
+        builder: (_, _) => const WelcomeScreen(),
       ),
       GoRoute(
         path: '/profile/edit',
-        builder: (_, __) => const EditProfileScreen(),
+        builder: (_, _) => const EditProfileScreen(),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => RoleShell(
+        builder: (_, _, shell) => RoleShell(
           navigationShell: shell,
           destinations: const [
             ShellDestination(
@@ -176,7 +176,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/consumer/home',
-              builder: (_, __) => const ConsumerHomeScreen(),
+              builder: (_, _) => const ConsumerHomeScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -190,19 +190,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/consumer/forum',
-              builder: (_, __) => const ForumListScreen(),
+              builder: (_, _) => const ForumListScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/consumer/orders',
-              builder: (_, __) => const OrdersScreen(),
+              builder: (_, _) => const OrdersScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/consumer/me',
-              builder: (_, __) => const ProfileScreen(
+              builder: (_, _) => const ProfileScreen(
                 roleLinks: [
                   ProfileLink(
                     label: 'Sửa hồ sơ',
@@ -235,10 +235,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             ShopDetailScreen(shopId: state.pathParameters['id']!),
       ),
-      GoRoute(path: '/consumer/cart', builder: (_, __) => const CartScreen()),
+      GoRoute(path: '/consumer/cart', builder: (_, _) => const CartScreen()),
       GoRoute(
         path: '/consumer/checkout',
-        builder: (_, __) => const CheckoutScreen(),
+        builder: (_, _) => const CheckoutScreen(),
       ),
       GoRoute(
         path: '/consumer/orders/:id',
@@ -247,7 +247,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/consumer/forum/create',
-        builder: (_, __) => const CreateForumPostScreen(),
+        builder: (_, _) => const CreateForumPostScreen(),
       ),
       GoRoute(
         path: '/consumer/forum/:id/edit',
@@ -264,7 +264,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/consumer/notifications',
-        builder: (_, __) => const NotificationsScreen(),
+        builder: (_, _) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/consumer/trace',
@@ -274,7 +274,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/consumer/trace/scan',
-        builder: (_, __) => const QrScanScreen(),
+        builder: (_, _) => const QrScanScreen(),
       ),
       GoRoute(
         path: '/trace/season/:id',
@@ -283,7 +283,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => RoleShell(
+        builder: (_, _, shell) => RoleShell(
           navigationShell: shell,
           destinations: const [
             ShellDestination(
@@ -322,32 +322,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/farmer/home',
-              builder: (_, __) => const FarmerHomeScreen(),
+              builder: (_, _) => const FarmerHomeScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/farmer/farms',
-              builder: (_, __) => const FarmsListScreen(),
+              builder: (_, _) => const FarmsListScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/farmer/forum',
-              builder: (_, __) =>
+              builder: (_, _) =>
                   const ForumListScreen(basePath: '/farmer'),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/farmer/shop',
-              builder: (_, __) => const ShopManageScreen(),
+              builder: (_, _) => const ShopManageScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/farmer/me',
-              builder: (_, __) => const ProfileScreen(
+              builder: (_, _) => const ProfileScreen(
                 roleLinks: [
                   ProfileLink(
                     label: 'Sửa hồ sơ',
@@ -397,7 +397,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/farms/create',
-        builder: (_, __) => const FarmFormScreen(),
+        builder: (_, _) => const FarmFormScreen(),
       ),
       GoRoute(
         path: '/farmer/farms/:id',
@@ -437,7 +437,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/orders',
-        builder: (_, __) => const OrdersScreen(isSeller: true),
+        builder: (_, _) => const OrdersScreen(isSeller: true),
       ),
       GoRoute(
         path: '/farmer/orders/:id',
@@ -448,19 +448,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/earnings',
-        builder: (_, __) => const EarningsScreen(),
+        builder: (_, _) => const EarningsScreen(),
       ),
       GoRoute(
         path: '/farmer/certificates',
-        builder: (_, __) => const CertificatesScreen(),
+        builder: (_, _) => const CertificatesScreen(),
       ),
       GoRoute(
         path: '/farmer/ai',
-        builder: (_, __) => const AiAssistantScreen(),
+        builder: (_, _) => const AiAssistantScreen(),
       ),
       GoRoute(
         path: '/farmer/agri-trend',
-        builder: (_, __) => const AgriTrendScreen(),
+        builder: (_, _) => const AgriTrendScreen(),
       ),
       GoRoute(
         path: '/farmer/shop/:id',
@@ -474,7 +474,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/diary',
-        builder: (_, __) => const DiaryDashboardScreen(),
+        builder: (_, _) => const DiaryDashboardScreen(),
       ),
       GoRoute(
         path: '/farmer/trace',
@@ -485,12 +485,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/trace/scan',
-        builder: (_, __) =>
+        builder: (_, _) =>
             const QrScanScreen(resultPath: '/farmer/trace'),
       ),
       GoRoute(
         path: '/farmer/forum/create',
-        builder: (_, __) => const CreateForumPostScreen(),
+        builder: (_, _) => const CreateForumPostScreen(),
       ),
       GoRoute(
         path: '/farmer/forum/:id/edit',
@@ -507,10 +507,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/notifications',
-        builder: (_, __) => const NotificationsScreen(),
+        builder: (_, _) => const NotificationsScreen(),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => RoleShell(
+        builder: (_, _, shell) => RoleShell(
           navigationShell: shell,
           destinations: const [
             ShellDestination(
@@ -537,19 +537,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/admin/home',
-              builder: (_, __) => const AdminHomeScreen(),
+              builder: (_, _) => const AdminHomeScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/admin/users',
-              builder: (_, __) => const AdminUsersScreen(),
+              builder: (_, _) => const AdminUsersScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/admin/me',
-              builder: (_, __) => const ProfileScreen(
+              builder: (_, _) => const ProfileScreen(
                 roleLinks: [
                   ProfileLink(
                     label: 'Sửa hồ sơ',
@@ -579,23 +579,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/admin/certificates',
-        builder: (_, __) => const AdminCertificatesScreen(),
+        builder: (_, _) => const AdminCertificatesScreen(),
       ),
       GoRoute(
         path: '/admin/broadcast',
-        builder: (_, __) => const AdminBroadcastScreen(),
+        builder: (_, _) => const AdminBroadcastScreen(),
       ),
       GoRoute(
         path: '/admin/audit-logs',
-        builder: (_, __) => const AdminAuditLogsScreen(),
+        builder: (_, _) => const AdminAuditLogsScreen(),
       ),
       GoRoute(
         path: '/admin/notifications',
-        builder: (_, __) => const NotificationsScreen(),
+        builder: (_, _) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/chat',
-        builder: (_, __) => const ConversationsScreen(),
+        builder: (_, _) => const ConversationsScreen(),
       ),
       GoRoute(
         path: '/chat/:id',
@@ -605,7 +605,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/consumer/chat',
-        builder: (_, __) => const ConversationsScreen(),
+        builder: (_, _) => const ConversationsScreen(),
       ),
       GoRoute(
         path: '/consumer/chat/:id',
@@ -615,7 +615,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/farmer/chat',
-        builder: (_, __) => const ConversationsScreen(),
+        builder: (_, _) => const ConversationsScreen(),
       ),
       GoRoute(
         path: '/farmer/chat/:id',
@@ -625,7 +625,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/admin/chat',
-        builder: (_, __) => const ConversationsScreen(),
+        builder: (_, _) => const ConversationsScreen(),
       ),
       GoRoute(
         path: '/admin/chat/:id',

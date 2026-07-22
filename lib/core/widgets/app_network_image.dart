@@ -34,7 +34,7 @@ class AppNetworkImage extends StatelessWidget {
             width: width,
             height: height,
             fit: fit,
-            placeholder: (_, __) => Container(
+            placeholder: (_, _) => Container(
               width: width,
               height: height,
               color: AppColors.hairline,
@@ -46,7 +46,7 @@ class AppNetworkImage extends StatelessWidget {
                 ),
               ),
             ),
-            errorWidget: (_, __, ___) => Container(
+            errorWidget: (_, _, _) => Container(
               width: width,
               height: height,
               color: AppColors.hairline,

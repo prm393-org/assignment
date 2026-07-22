@@ -108,7 +108,7 @@ class OrdersScreen extends ConsumerWidget {
         builder: (page) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: page.items.length + 1,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
             if (i == 0) {
               return PageHeader(

@@ -33,7 +33,7 @@ class ConversationsScreen extends ConsumerWidget {
         builder: (list) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: list.length,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
             final c = list[i];
             final name = c.peerName ?? 'Người dùng';

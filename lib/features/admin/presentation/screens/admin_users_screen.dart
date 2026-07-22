@@ -52,7 +52,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               builder: (page) => ListView.separated(
                 padding: AppSpacing.screen,
                 itemCount: page.items.length,
-                separatorBuilder: (_, __) =>
+                separatorBuilder: (_, _) =>
                     const SizedBox(height: AppSpacing.md),
                 itemBuilder: (_, i) {
                   final u = page.items[i];

@@ -39,7 +39,7 @@ class ShopManageScreen extends ConsumerWidget {
         builder: (list) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: list.length + 1,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
             if (i == 0) {
               return SoftHeroBanner(
@@ -109,6 +109,7 @@ class ShopManageScreen extends ConsumerWidget {
     String farmId = farms.first.id;
     final name = TextEditingController(text: 'Gian hàng ${farms.first.name}');
     final desc = TextEditingController();
+    if (!context.mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(

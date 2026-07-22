@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Default: block cleartext everywhere -->
+    <base-config cleartextTrafficPermitted="false" />
+    <!-- Only the deployed backend still speaks HTTP -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">178.128.98.214</domain>
+    </domain-config>
+</network-security-config>

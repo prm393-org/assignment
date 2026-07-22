@@ -21,8 +21,8 @@ class PresenceService {
     final payload = <String, dynamic>{
       'online': true,
       'lastSeenAt': ServerValue.timestamp,
-      if (backendUserId != null) 'backendUserId': backendUserId,
-      if (displayName != null) 'displayName': displayName,
+      'backendUserId': ?backendUserId,
+      'displayName': ?displayName,
     };
     try {
       await ref.set(payload);

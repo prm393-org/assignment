@@ -306,7 +306,8 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<int>(
-            value: _provinceCode,
+            key: ValueKey('province_$_provinceCode'),
+            initialValue: _provinceCode,
             decoration: const InputDecoration(labelText: 'Tỉnh/TP'),
             items: [
               for (final p in _provinces)
@@ -320,7 +321,8 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<int>(
-            value: _districtCode,
+            key: ValueKey('district_${_provinceCode}_$_districtCode'),
+            initialValue: _districtCode,
             decoration: const InputDecoration(labelText: 'Quận/Huyện'),
             items: [
               for (final d in _districts)
@@ -334,7 +336,8 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<int>(
-            value: _wardCode,
+            key: ValueKey('ward_${_districtCode}_$_wardCode'),
+            initialValue: _wardCode,
             decoration: const InputDecoration(labelText: 'Phường/Xã'),
             items: [
               for (final w in _wards)

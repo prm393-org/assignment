@@ -31,7 +31,7 @@ class CertificatesScreen extends ConsumerWidget {
         builder: (page) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: page.items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
             final c = page.items[i];
             return ListTile(
@@ -54,6 +54,7 @@ class CertificatesScreen extends ConsumerWidget {
   Future<void> _submit(BuildContext context, WidgetRef ref) async {
     final farms = await ref.read(myFarmsProvider.future);
     if (farms.isEmpty) return;
+    if (!context.mounted) return;
     String farmId = farms.first.id;
     final no = TextEditingController();
     final issuer = TextEditingController(text: 'VietGAP');
@@ -70,7 +71,7 @@ class CertificatesScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: farmId,
+                  initialValue: farmId,
                   items: [
                     for (final f in farms)
                       DropdownMenuItem(value: f.id, child: Text(f.name)),

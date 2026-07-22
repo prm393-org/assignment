@@ -36,7 +36,7 @@ final dioProvider = Provider<Dio>((ref) {
             keys: {
               'api_path': error.requestOptions.path,
               'api_method': error.requestOptions.method,
-              if (status != null) 'api_status': status,
+              'api_status': ?status,
             },
           );
         }

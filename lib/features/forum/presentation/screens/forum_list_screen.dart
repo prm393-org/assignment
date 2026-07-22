@@ -151,7 +151,7 @@ class _ForumListScreenState extends ConsumerState<ForumListScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
                   itemCount: page.items.length + 1,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.md),
                   itemBuilder: (_, i) {
                     if (i == 0) {

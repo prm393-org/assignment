@@ -40,7 +40,7 @@ class ReviewRepositoryImpl implements ReviewRepository {
         'order_id': orderId,
         'product_id': productId,
         'rating': rating,
-        if (comment != null) 'comment': comment,
+        'comment': ?comment,
       });
       return ShopReview.fromJson(asMap(unwrapData(res.data)));
     } catch (e) {
