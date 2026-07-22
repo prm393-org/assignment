@@ -10,4 +10,9 @@ abstract class ReviewRepository {
     required int rating,
     String? comment,
   });
+  Future<ShopReview> updateReview({
+    required String reviewId,
+    required int rating,
+    String? comment,
+  });
 }

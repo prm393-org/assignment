@@ -7,6 +7,7 @@ import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
+import 'package:chuoi_xanh_viet/features/chat/data/chat_rtdb.dart';
 import 'package:chuoi_xanh_viet/features/chat/domain/entities/chat_message.dart';
 import 'package:chuoi_xanh_viet/features/chat/presentation/providers/chat_providers.dart';
 
@@ -24,23 +25,27 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final _scroll = ScrollController();
   bool _sending = false;
   final List<ChatMessage> _liveMessages = [];
-  ChatSocketController? _socketController;
+  ChatRealtimeController? _realtime;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _socketController = ref.read(chatSocketControllerProvider);
-      _socketController!.joinConversation(
+      _realtime = ref.read(chatRealtimeControllerProvider);
+      _realtime!.joinConversation(
         widget.conversationId,
-        onMessage: _onSocketMessage,
+        onMessage: _onLiveMessage,
       );
     });
   }
 
-  void _onSocketMessage(ChatMessage message) {
+  void _onLiveMessage(ChatMessage message) {
     if (!mounted) return;
+    if (message.conversationId.isNotEmpty &&
+        message.conversationId != widget.conversationId) {
+      return;
+    }
     final exists = _liveMessages.any((m) => m.id == message.id);
     if (exists) return;
     setState(() => _liveMessages.add(message));
@@ -50,7 +55,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   @override
   void dispose() {
-    _socketController?.leaveConversation(widget.conversationId);
+    _realtime?.leaveConversation(widget.conversationId);
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -61,10 +66,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await ref
+      final sent = await ref
           .read(chatRepositoryProvider)
           .sendMessage(widget.conversationId, text);
+      await ChatRtdb.publish(sent);
       _input.clear();
+      if (!_liveMessages.any((m) => m.id == sent.id)) {
+        setState(() => _liveMessages.add(sent));
+      }
       ref.invalidate(chatMessagesProvider(widget.conversationId));
       ref.invalidate(conversationsProvider);
     } catch (e) {
@@ -98,8 +107,20 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(chatMessagesProvider(widget.conversationId));
     final myId = ref.watch(authNotifierProvider).user?.id;
+    final peerName = ref
+        .watch(conversationsProvider)
+        .valueOrNull
+        ?.where((c) => c.id == widget.conversationId)
+        .map((c) => c.peerName)
+        .firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: const Text('Trò chuyện')),
+      appBar: AppBar(
+        title: Text(
+          peerName != null && peerName.trim().isNotEmpty
+              ? peerName
+              : 'Trò chuyện',
+        ),
+      ),
       body: Column(
         children: [
           Expanded(

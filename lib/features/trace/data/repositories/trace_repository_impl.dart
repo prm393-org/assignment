@@ -36,4 +36,20 @@ class TraceRepositoryImpl implements TraceRepository {
       throw mapDioException(e);
     }
   }
+
+  @override
+  Future<TraceVerifyResult> verifySeason(
+    String seasonId, {
+    bool isPublic = true,
+  }) async {
+    try {
+      final path = isPublic
+          ? '/trace/public/verify/$seasonId'
+          : '/trace/verify/$seasonId';
+      final res = await _dio.get(path);
+      return TraceVerifyResult.fromJson(asMap(unwrapData(res.data)));
+    } catch (e) {
+      throw mapDioException(e);
+    }
+  }
 }

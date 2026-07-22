@@ -162,11 +162,7 @@ class AsyncBody<T> extends StatelessWidget {
     }
     final data = value.requireValue;
     if (isEmpty?.call(data) ?? false) {
-      return EmptyState(
-        message: emptyMessage,
-        onAction: onRetry,
-        actionLabel: onRetry != null ? 'Tải lại' : null,
-      );
+      return EmptyState(message: emptyMessage);
     }
     return builder(data);
   }

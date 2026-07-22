@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/order_live_sync.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/order/domain/entities/order.dart';
 import 'package:chuoi_xanh_viet/features/order/domain/repositories/order_repository.dart';
@@ -80,20 +81,30 @@ class OrderRepositoryImpl implements OrderRepository {
   }
 
   @override
-  Future<OrderEntity> cancelOrder(String orderId) async {
+  Future<OrderEntity> updateOrderStatus(String orderId, String status) async {
     try {
-      final res = await _dio.patch('/order/$orderId/cancel');
-      return OrderEntity.fromJson(asMap(unwrapData(res.data)));
+      final res = await _dio.patch('/order/$orderId/status', data: {'status': status});
+      final order = OrderEntity.fromJson(asMap(unwrapData(res.data)));
+      await OrderLiveSync.publishStatus(
+        orderId: order.id.isNotEmpty ? order.id : orderId,
+        status: order.status.isNotEmpty ? order.status : status,
+      );
+      return order;
     } catch (e) {
       throw mapDioException(e);
     }
   }
 
   @override
-  Future<OrderEntity> updateOrderStatus(String orderId, String status) async {
+  Future<OrderEntity> cancelOrder(String orderId) async {
     try {
-      final res = await _dio.patch('/order/$orderId/status', data: {'status': status});
-      return OrderEntity.fromJson(asMap(unwrapData(res.data)));
+      final res = await _dio.patch('/order/$orderId/cancel');
+      final order = OrderEntity.fromJson(asMap(unwrapData(res.data)));
+      await OrderLiveSync.publishStatus(
+        orderId: order.id.isNotEmpty ? order.id : orderId,
+        status: order.status.isNotEmpty ? order.status : 'cancelled',
+      );
+      return order;
     } catch (e) {
       throw mapDioException(e);
     }

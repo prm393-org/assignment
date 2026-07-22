@@ -3,7 +3,12 @@ import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/core/utils/media_url.dart';
 
 class ForumAuthor extends Equatable {
-  const ForumAuthor({required this.id, required this.fullName, this.avatarUrl, this.role});
+  const ForumAuthor({
+    required this.id,
+    required this.fullName,
+    this.avatarUrl,
+    this.role,
+  });
   final String id;
   final String fullName;
   final String? avatarUrl;
@@ -12,7 +17,9 @@ class ForumAuthor extends Equatable {
   factory ForumAuthor.fromJson(Map<String, dynamic> json) => ForumAuthor(
         id: readString(json, ['id']),
         fullName: readString(json, ['fullName', 'full_name'], 'Người dùng'),
-        avatarUrl: resolveMediaUrl(readStringOrNull(json, ['avatar', 'avatarUrl', 'avatar_url'])),
+        avatarUrl: resolveMediaUrl(
+          readStringOrNull(json, ['avatar', 'avatarUrl', 'avatar_url']),
+        ),
         role: readStringOrNull(json, ['role']),
       );
 
@@ -30,6 +37,7 @@ class ForumPost extends Equatable {
     this.likeCount = 0,
     this.createdAt,
     this.labels = const [],
+    this.imageUrls = const [],
   });
 
   final String id;
@@ -40,9 +48,15 @@ class ForumPost extends Equatable {
   final int likeCount;
   final String? createdAt;
   final List<String> labels;
+  final List<String> imageUrls;
 
   factory ForumPost.fromJson(Map<String, dynamic> json) {
     final author = asMap(json['author'] ?? json['users']);
+    final images = asList(json['imageUrls'] ?? json['image_urls'] ?? json['images'])
+        .map((e) => resolveMediaUrl('$e'))
+        .whereType<String>()
+        .where((e) => e.isNotEmpty)
+        .toList();
     return ForumPost(
       id: readString(json, ['id']),
       title: readString(json, ['title']),
@@ -52,6 +66,7 @@ class ForumPost extends Equatable {
       likeCount: readInt(json, ['likeCount', 'like_count']),
       createdAt: readStringOrNull(json, ['createdAt', 'created_at']),
       labels: asList(json['labels']).map((e) => '$e').toList(),
+      imageUrls: images,
     );
   }
 

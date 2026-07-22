@@ -47,4 +47,21 @@ class ReviewRepositoryImpl implements ReviewRepository {
       throw mapDioException(e);
     }
   }
+
+  @override
+  Future<ShopReview> updateReview({
+    required String reviewId,
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final res = await _dio.patch('/review/$reviewId', data: {
+        'rating': rating,
+        'comment': comment,
+      });
+      return ShopReview.fromJson(asMap(unwrapData(res.data)));
+    } catch (e) {
+      throw mapDioException(e);
+    }
+  }
 }

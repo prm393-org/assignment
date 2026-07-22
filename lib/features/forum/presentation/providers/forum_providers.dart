@@ -1,3 +1,4 @@
+import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/firebase/current_uid_provider.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
@@ -13,9 +14,22 @@ final forumRepositoryProvider = Provider<ForumRepository>((ref) {
   );
 });
 
-final forumPostsProvider =
-    StreamProvider.autoDispose<PaginatedResult<ForumPost>>((ref) {
-  return ref.watch(forumRepositoryProvider).watchPosts();
+class ForumListQuery extends Equatable {
+  const ForumListQuery({this.searchTerm, this.label});
+
+  final String? searchTerm;
+  final String? label;
+
+  @override
+  List<Object?> get props => [searchTerm, label];
+}
+
+final forumPostsProvider = StreamProvider.autoDispose
+    .family<PaginatedResult<ForumPost>, ForumListQuery>((ref, query) {
+  return ref.watch(forumRepositoryProvider).watchPosts(
+        searchTerm: query.searchTerm,
+        label: query.label,
+      );
 });
 
 final forumPostProvider =

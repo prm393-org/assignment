@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chuoi_xanh_viet/core/firebase/order_live_sync.dart';
 import 'package:chuoi_xanh_viet/core/network/dio_client.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/order/data/repositories/cached_order_repository.dart';
@@ -28,4 +29,10 @@ final orderDetailProvider =
 final shopEarningsProvider =
     FutureProvider.autoDispose<ShopEarnings>((ref) {
   return ref.watch(orderRepositoryProvider).getShopEarnings();
+});
+
+/// Live order status from Firebase RTDB.
+final liveOrderStatusProvider =
+    StreamProvider.autoDispose.family<String?, String>((ref, orderId) {
+  return OrderLiveSync.watchStatus(orderId);
 });

@@ -1,11 +1,11 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chuoi_xanh_viet/core/firebase/firestore_refs.dart';
+import 'package:chuoi_xanh_viet/core/firebase/notification_counter_sync.dart';
 
 /// Writes a notification doc for [userId] (a Firebase Auth uid, not a
-/// backend `AuthUser.id`). There is no backend writer for notifications —
-/// whatever client action causes one (a forum reply, an order status
-/// change, ...) must call this directly. Failures are swallowed: a missed
-/// notification must never block the action that triggered it.
+/// backend `AuthUser.id`). Also bumps the RTDB unread counter for live badges.
 Future<void> notifyUser({
   required String userId,
   required String title,
@@ -23,6 +23,7 @@ Future<void> notifyUser({
       'read': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    unawaited(NotificationCounterSync.increment(userId));
   } catch (_) {
     // Best-effort; a failed notification write must not block the caller.
   }

@@ -58,5 +58,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '833822181033',
     projectId: 'prm301-asm',
     storageBucket: 'prm301-asm.firebasestorage.app',
+    // Set after enabling Realtime Database in Firebase Console
+    // (Project settings → Your apps, or flutterfire configure).
+    databaseURL: 'https://prm301-asm-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 }

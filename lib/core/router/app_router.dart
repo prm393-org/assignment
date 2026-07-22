@@ -182,7 +182,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/consumer/marketplace',
-              builder: (_, __) => const MarketplaceScreen(),
+              builder: (_, state) => MarketplaceScreen(
+                initialQuery: state.uri.queryParameters['q'],
+              ),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -248,9 +250,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const CreateForumPostScreen(),
       ),
       GoRoute(
+        path: '/consumer/forum/:id/edit',
+        builder: (_, state) => CreateForumPostScreen(
+          editPostId: state.pathParameters['id'],
+        ),
+      ),
+      GoRoute(
         path: '/consumer/forum/:id',
-        builder: (_, state) =>
-            ForumPostScreen(postId: state.pathParameters['id']!),
+        builder: (_, state) => ForumPostScreen(
+          postId: state.pathParameters['id']!,
+          basePath: '/consumer',
+        ),
       ),
       GoRoute(
         path: '/consumer/notifications',
@@ -265,6 +275,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/consumer/trace/scan',
         builder: (_, __) => const QrScanScreen(),
+      ),
+      GoRoute(
+        path: '/trace/season/:id',
+        builder: (_, state) => TraceDetailScreen(
+          seasonId: state.pathParameters['id']!,
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => RoleShell(
@@ -477,9 +493,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const CreateForumPostScreen(),
       ),
       GoRoute(
+        path: '/farmer/forum/:id/edit',
+        builder: (_, state) => CreateForumPostScreen(
+          editPostId: state.pathParameters['id'],
+        ),
+      ),
+      GoRoute(
         path: '/farmer/forum/:id',
-        builder: (_, state) =>
-            ForumPostScreen(postId: state.pathParameters['id']!),
+        builder: (_, state) => ForumPostScreen(
+          postId: state.pathParameters['id']!,
+          basePath: '/farmer',
+        ),
       ),
       GoRoute(
         path: '/farmer/notifications',

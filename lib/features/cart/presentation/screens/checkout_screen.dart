@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:chuoi_xanh_viet/core/config/api_config.dart';
 import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
@@ -56,10 +57,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
     setState(() => _loading = true);
+    await CrashlyticsService.breadcrumb(
+      'checkout_start shops=${groups.length} payment=$_paymentMethod',
+    );
     try {
       final repo = ref.read(orderRepositoryProvider);
       String? checkoutUrl;
       for (final g in groups) {
+        await CrashlyticsService.breadcrumb(
+          'checkout_create_order shop=${g.shopId} items=${g.items.length}',
+        );
         final order = await repo.createOrder(
           shopId: g.shopId,
           items: [
@@ -75,6 +82,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         await ref.read(cartProvider.notifier).removeByShop(g.shopId);
         checkoutUrl ??= order.checkoutUrl;
       }
+      await CrashlyticsService.breadcrumb('checkout_success payment=$_paymentMethod');
       if (!mounted) return;
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
         final uri = Uri.tryParse(checkoutUrl);
@@ -97,6 +105,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
       context.go('/consumer/orders');
     } catch (e) {
+      await CrashlyticsService.breadcrumb('checkout_fail');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e is Failure ? e.message : e.toString())),

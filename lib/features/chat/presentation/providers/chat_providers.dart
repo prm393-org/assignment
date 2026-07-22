@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
+import 'package:chuoi_xanh_viet/core/firebase/current_uid_provider.dart';
+import 'package:chuoi_xanh_viet/core/firebase/presence_service.dart';
 import 'package:chuoi_xanh_viet/core/network/dio_client.dart';
-import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
-import 'package:chuoi_xanh_viet/features/chat/data/chat_socket.dart';
+import 'package:chuoi_xanh_viet/features/chat/data/chat_rtdb.dart';
 import 'package:chuoi_xanh_viet/features/chat/data/repositories/chat_repository_impl.dart';
 import 'package:chuoi_xanh_viet/features/chat/domain/entities/chat_message.dart';
 import 'package:chuoi_xanh_viet/features/chat/domain/entities/conversation.dart';
@@ -13,8 +15,10 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 });
 
 final conversationsProvider =
-    FutureProvider.autoDispose<List<Conversation>>((ref) {
-  return ref.watch(chatRepositoryProvider).listConversations();
+    FutureProvider.autoDispose<List<Conversation>>((ref) async {
+  final meId = ref.watch(authNotifierProvider).user?.id;
+  final list = await ref.watch(chatRepositoryProvider).listConversations();
+  return list.map((c) => c.resolvedFor(meId)).toList();
 });
 
 final chatMessagesProvider =
@@ -22,78 +26,92 @@ final chatMessagesProvider =
   return ref.watch(chatRepositoryProvider).listMessages(id);
 });
 
-class ChatSocketController {
-  ChatSocketController(this._socket);
+/// Replaces Socket.IO — RTDB child_added for the active conversation.
+class ChatRealtimeController {
+  ChatRealtimeController(this._rtdb);
 
-  final ChatSocket _socket;
-  String? _activeConversationId;
-  void Function(ChatMessage message)? _onThreadMessage;
-
-  void connect(String? accessToken) {
-    if (accessToken == null || accessToken.isEmpty) {
-      disconnect();
-      return;
-    }
-    _socket.connect(accessToken);
-    _socket.onMessage(_handleRawMessage);
-  }
-
-  void disconnect() {
-    _activeConversationId = null;
-    _onThreadMessage = null;
-    _socket.offMessage();
-    _socket.disconnect();
-  }
+  final ChatRtdb _rtdb;
 
   void joinConversation(
     String conversationId, {
     required void Function(ChatMessage message) onMessage,
   }) {
-    _activeConversationId = conversationId;
-    _onThreadMessage = onMessage;
-    _socket.join(conversationId);
+    _rtdb.joinConversation(conversationId, onMessage: onMessage);
   }
 
   void leaveConversation(String conversationId) {
-    if (_activeConversationId == conversationId) {
-      _activeConversationId = null;
-      _onThreadMessage = null;
+    if (_rtdb.activeConversationId == conversationId) {
+      _rtdb.leave();
     }
-    _socket.leave(conversationId);
   }
 
-  void _handleRawMessage(dynamic data) {
-    final map = asMap(data is Map ? data : unwrapData(data));
-    if (map.isEmpty) return;
-    final nested = asMap(map['message'] ?? map['data']);
-    final json = nested.isNotEmpty ? nested : map;
-    final message = ChatMessage.fromJson(json);
-    if (_activeConversationId != null &&
-        message.conversationId.isNotEmpty &&
-        message.conversationId != _activeConversationId) {
-      return;
-    }
-    _onThreadMessage?.call(message);
-  }
-
-  void dispose() => disconnect();
+  void dispose() => _rtdb.dispose();
 }
 
-final chatSocketProvider = Provider<ChatSocket>((ref) {
-  final socket = ChatSocket();
-  ref.onDispose(socket.disconnect);
-  return socket;
+final chatRtdbProvider = Provider<ChatRtdb>((ref) {
+  final rtdb = ChatRtdb();
+  ref.onDispose(rtdb.dispose);
+  return rtdb;
 });
 
-final chatSocketControllerProvider = Provider<ChatSocketController>((ref) {
-  final controller = ChatSocketController(ref.watch(chatSocketProvider));
-  ref.listen<AuthState>(authNotifierProvider, (prev, next) {
-    if (next.isAuthenticated && next.accessToken != null) {
-      controller.connect(next.accessToken);
-    } else {
-      controller.disconnect();
-    }
-  }, fireImmediately: true);
+final chatRealtimeControllerProvider = Provider<ChatRealtimeController>((ref) {
+  final controller = ChatRealtimeController(ref.watch(chatRtdbProvider));
   ref.onDispose(controller.dispose);
   return controller;
+});
+
+final presenceServiceProvider = Provider<PresenceService>((ref) {
+  final service = PresenceService();
+  ref.onDispose(() {
+    // ignore: discarded_futures
+    service.goOffline();
+  });
+  return service;
+});
+
+/// Keeps presence + Crashlytics user identity in sync with auth/Firebase uid.
+final presenceBindingProvider = Provider<void>((ref) {
+  final presence = ref.watch(presenceServiceProvider);
+  ref.listen(authNotifierProvider, (prev, next) async {
+    final uid = ref.read(currentFirebaseUidProvider);
+    if (next.isAuthenticated && uid != null) {
+      await CrashlyticsService.setUser(
+        firebaseUid: uid,
+        backendUserId: next.user?.id,
+        email: next.user?.email,
+        role: next.user?.role,
+      );
+      await presence.goOnline(
+        firebaseUid: uid,
+        backendUserId: next.user?.id,
+        displayName: next.user?.fullName,
+      );
+    } else if (prev?.isAuthenticated == true && !next.isAuthenticated) {
+      await presence.goOffline();
+      await CrashlyticsService.clearUser();
+    }
+  }, fireImmediately: true);
+
+  ref.listen(currentFirebaseUidProvider, (prev, next) async {
+    final auth = ref.read(authNotifierProvider);
+    if (auth.isAuthenticated && next != null && next != prev) {
+      await presence.goOnline(
+        firebaseUid: next,
+        backendUserId: auth.user?.id,
+        displayName: auth.user?.fullName,
+      );
+      await CrashlyticsService.setUser(
+        firebaseUid: next,
+        backendUserId: auth.user?.id,
+        email: auth.user?.email,
+        role: auth.user?.role,
+      );
+    }
+  });
+});
+
+final peerOnlineProvider =
+    StreamProvider.autoDispose.family<bool, String>((ref, firebaseUid) {
+  if (firebaseUid.isEmpty) return Stream<bool>.value(false);
+  return ref.watch(presenceServiceProvider).watchOnline(firebaseUid);
 });

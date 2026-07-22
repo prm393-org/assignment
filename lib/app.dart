@@ -9,7 +9,8 @@ class ChuoiXanhVietApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(chatSocketControllerProvider);
+    // Keep presence + Crashlytics user binding app-wide.
+    ref.watch(presenceBindingProvider);
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'Chuỗi Xanh Việt',

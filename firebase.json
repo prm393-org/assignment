@@ -1,1 +1,27 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"prm301-asm","appId":"1:833822181033:android:bb1903ade4a65963b08bb8","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"prm301-asm","configurations":{"android":"1:833822181033:android:bb1903ade4a65963b08bb8"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "prm301-asm",
+          "appId": "1:833822181033:android:bb1903ade4a65963b08bb8",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "prm301-asm",
+          "configurations": {
+            "android": "1:833822181033:android:bb1903ade4a65963b08bb8"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}

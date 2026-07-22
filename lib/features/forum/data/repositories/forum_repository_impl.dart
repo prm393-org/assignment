@@ -10,7 +10,7 @@ import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/forum/domain/entities/forum_post.dart';
 import 'package:chuoi_xanh_viet/features/forum/domain/repositories/forum_repository.dart';
 
-const _pageSize = 15;
+const _pageSize = 50;
 
 class ForumRepositoryImpl implements ForumRepository {
   ForumRepositoryImpl({
@@ -29,12 +29,14 @@ class ForumRepositoryImpl implements ForumRepository {
   Future<PaginatedResult<ForumPost>> getPosts({
     int page = 1,
     String? searchTerm,
+    String? label,
   }) async {
     try {
       final snapshot = await _postsQuery().get();
-      final items = _applySearch(
+      final items = _filterPosts(
         snapshot.docs.map((d) => ForumPost.fromJson(_postJson(d))).toList(),
-        searchTerm,
+        searchTerm: searchTerm,
+        label: label,
       );
       return PaginatedResult(items: items, total: items.length, limit: _pageSize);
     } catch (e) {
@@ -43,11 +45,15 @@ class ForumRepositoryImpl implements ForumRepository {
   }
 
   @override
-  Stream<PaginatedResult<ForumPost>> watchPosts({String? searchTerm}) {
+  Stream<PaginatedResult<ForumPost>> watchPosts({
+    String? searchTerm,
+    String? label,
+  }) {
     return _postsQuery().snapshots().map((snapshot) {
-      final items = _applySearch(
+      final items = _filterPosts(
         snapshot.docs.map((d) => ForumPost.fromJson(_postJson(d))).toList(),
-        searchTerm,
+        searchTerm: searchTerm,
+        label: label,
       );
       return PaginatedResult(items: items, total: items.length, limit: _pageSize);
     });
@@ -57,10 +63,19 @@ class ForumRepositoryImpl implements ForumRepository {
       .orderBy('createdAt', descending: true)
       .limit(_pageSize);
 
-  List<ForumPost> _applySearch(List<ForumPost> items, String? searchTerm) {
-    if (searchTerm == null || searchTerm.trim().isEmpty) return items;
+  List<ForumPost> _filterPosts(
+    List<ForumPost> items, {
+    String? searchTerm,
+    String? label,
+  }) {
+    var result = items;
+    if (label != null && label.trim().isNotEmpty && label != 'all') {
+      final slug = label.trim();
+      result = result.where((p) => p.labels.contains(slug)).toList();
+    }
+    if (searchTerm == null || searchTerm.trim().isEmpty) return result;
     final q = searchTerm.trim().toLowerCase();
-    return items
+    return result
         .where(
           (p) =>
               p.title.toLowerCase().contains(q) ||
@@ -87,6 +102,8 @@ class ForumRepositoryImpl implements ForumRepository {
   Future<ForumPost> createPost({
     required String title,
     required String content,
+    List<String> labels = const [],
+    List<String> imageUrls = const [],
   }) async {
     try {
       final uid = _currentUid();
@@ -104,11 +121,79 @@ class ForumRepositoryImpl implements ForumRepository {
         'authorRole': user?.role,
         'commentCount': 0,
         'likeCount': 0,
-        'labels': <String>[],
+        'labels': labels,
+        'imageUrls': imageUrls,
         'createdAt': FieldValue.serverTimestamp(),
       });
       final snap = await docRef.get();
       return ForumPost.fromJson(_postJson(snap));
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
+    }
+  }
+
+  @override
+  Future<ForumPost> updatePost({
+    required String postId,
+    required String title,
+    required String content,
+    List<String> labels = const [],
+    List<String> imageUrls = const [],
+  }) async {
+    try {
+      final uid = _currentUid();
+      if (uid == null) {
+        throw const AuthFailure('Cần đăng nhập để sửa bài');
+      }
+      final postRef = FirestoreRefs.forumPostsRef().doc(postId);
+      final snap = await postRef.get();
+      if (!snap.exists) {
+        throw const ValidationFailure('Bài viết không tồn tại');
+      }
+      final authorId = snap.data()?['authorId'] as String?;
+      if (authorId != uid) {
+        throw const AuthFailure('Chỉ sửa được bài viết của bạn');
+      }
+      await postRef.update({
+        'title': title,
+        'content': content,
+        'labels': labels,
+        'imageUrls': imageUrls,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      final updated = await postRef.get();
+      return ForumPost.fromJson(_postJson(updated));
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
+    }
+  }
+
+  @override
+  Future<void> deletePost(String postId) async {
+    try {
+      final uid = _currentUid();
+      if (uid == null) {
+        throw const AuthFailure('Cần đăng nhập để xóa bài');
+      }
+      final postRef = FirestoreRefs.forumPostsRef().doc(postId);
+      final snap = await postRef.get();
+      if (!snap.exists) {
+        throw const ValidationFailure('Bài viết không tồn tại');
+      }
+      final authorId = snap.data()?['authorId'] as String?;
+      if (authorId != uid) {
+        throw const AuthFailure('Chỉ xóa được bài viết của bạn');
+      }
+      final comments =
+          await FirestoreRefs.forumCommentsRef(postId).limit(400).get();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final d in comments.docs) {
+        batch.delete(d.reference);
+      }
+      batch.delete(postRef);
+      await batch.commit();
     } catch (e) {
       if (e is Failure) rethrow;
       throw mapFirestoreException(e);
@@ -148,8 +233,10 @@ class ForumRepositoryImpl implements ForumRepository {
       final postRef = FirestoreRefs.forumPostsRef().doc(postId);
       final commentRef = FirestoreRefs.forumCommentsRef(postId).doc();
       final postSnap = await postRef.get();
-      final batch = FirebaseFirestore.instance.batch();
-      batch.set(commentRef, {
+      // Comment create and commentCount bump must not share one batch:
+      // until rules allow non-authors to bump commentCount, a batch would
+      // fail the whole write with permission-denied.
+      await commentRef.set({
         'content': content,
         'authorId': uid,
         'authorName': user?.fullName ?? 'Người dùng',
@@ -157,8 +244,11 @@ class ForumRepositoryImpl implements ForumRepository {
         'authorRole': user?.role,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      batch.update(postRef, {'commentCount': FieldValue.increment(1)});
-      await batch.commit();
+      try {
+        await postRef.update({'commentCount': FieldValue.increment(1)});
+      } catch (_) {
+        // Best-effort counter; comment already persisted.
+      }
       final postAuthorId = postSnap.data()?['authorId'] as String?;
       if (postAuthorId != null && postAuthorId != uid) {
         unawaited(notifyUser(
@@ -172,6 +262,70 @@ class ForumRepositoryImpl implements ForumRepository {
       }
       final snap = await commentRef.get();
       return ForumComment.fromJson(_commentJson(snap));
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
+    }
+  }
+
+  @override
+  Future<ForumComment> updateComment({
+    required String postId,
+    required String commentId,
+    required String content,
+  }) async {
+    try {
+      final uid = _currentUid();
+      if (uid == null) {
+        throw const AuthFailure('Cần đăng nhập để sửa bình luận');
+      }
+      final commentRef = FirestoreRefs.forumCommentsRef(postId).doc(commentId);
+      final snap = await commentRef.get();
+      if (!snap.exists) {
+        throw const ValidationFailure('Không tìm thấy bình luận');
+      }
+      final authorId = snap.data()?['authorId'] as String?;
+      if (authorId != uid) {
+        throw const AuthFailure('Chỉ sửa được bình luận của bạn');
+      }
+      await commentRef.update({
+        'content': content,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      final updated = await commentRef.get();
+      return ForumComment.fromJson(_commentJson(updated));
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw mapFirestoreException(e);
+    }
+  }
+
+  @override
+  Future<void> deleteComment({
+    required String postId,
+    required String commentId,
+  }) async {
+    try {
+      final uid = _currentUid();
+      if (uid == null) {
+        throw const AuthFailure('Cần đăng nhập để xóa bình luận');
+      }
+      final postRef = FirestoreRefs.forumPostsRef().doc(postId);
+      final commentRef = FirestoreRefs.forumCommentsRef(postId).doc(commentId);
+      final snap = await commentRef.get();
+      if (!snap.exists) {
+        throw const ValidationFailure('Không tìm thấy bình luận');
+      }
+      final authorId = snap.data()?['authorId'] as String?;
+      if (authorId != uid) {
+        throw const AuthFailure('Chỉ xóa được bình luận của bạn');
+      }
+      await commentRef.delete();
+      try {
+        await postRef.update({'commentCount': FieldValue.increment(-1)});
+      } catch (_) {
+        // Best-effort counter; comment already deleted.
+      }
     } catch (e) {
       if (e is Failure) rethrow;
       throw mapFirestoreException(e);
@@ -194,6 +348,7 @@ class ForumRepositoryImpl implements ForumRepository {
       'likeCount': data['likeCount'],
       'createdAt': _isoFromTimestamp(data['createdAt']),
       'labels': data['labels'],
+      'imageUrls': data['imageUrls'] ?? data['images'],
     };
   }
 

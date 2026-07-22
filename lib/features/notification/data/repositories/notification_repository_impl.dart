@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chuoi_xanh_viet/core/error/firestore_exception_mapper.dart';
 import 'package:chuoi_xanh_viet/core/firebase/firestore_refs.dart';
+import 'package:chuoi_xanh_viet/core/firebase/notification_counter_sync.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/notification/domain/entities/app_notification.dart';
 import 'package:chuoi_xanh_viet/features/notification/domain/repositories/notification_repository.dart';
@@ -50,6 +51,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
   Future<void> markRead(String id) async {
     try {
       await FirestoreRefs.notificationsRef().doc(id).update({'read': true});
+      await _syncUnreadCount();
     } catch (e) {
       throw mapFirestoreException(e);
     }
@@ -58,8 +60,9 @@ class NotificationRepositoryImpl implements NotificationRepository {
   @override
   Future<void> markAllRead() async {
     try {
+      final uid = _currentUid();
       final snapshot = await FirestoreRefs.notificationsRef()
-          .where('userId', isEqualTo: _currentUid())
+          .where('userId', isEqualTo: uid)
           .where('read', isEqualTo: false)
           .get();
       final docs = snapshot.docs;
@@ -71,9 +74,20 @@ class NotificationRepositoryImpl implements NotificationRepository {
         }
         await batch.commit();
       }
+      if (uid != null) await NotificationCounterSync.setCount(uid, 0);
     } catch (e) {
       throw mapFirestoreException(e);
     }
+  }
+
+  Future<void> _syncUnreadCount() async {
+    final uid = _currentUid();
+    if (uid == null) return;
+    final snapshot = await FirestoreRefs.notificationsRef()
+        .where('userId', isEqualTo: uid)
+        .where('read', isEqualTo: false)
+        .get();
+    await NotificationCounterSync.setCount(uid, snapshot.docs.length);
   }
 
   Map<String, dynamic> _json(DocumentSnapshot<Map<String, dynamic>> doc) {
