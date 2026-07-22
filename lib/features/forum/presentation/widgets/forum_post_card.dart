@@ -249,7 +249,7 @@ class _PostImagePreview extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         itemCount: urls.length.clamp(0, 4),
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
         itemBuilder: (_, i) {
           final remaining = urls.length - 4;
           final showMore = i == 3 && remaining > 0;

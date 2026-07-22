@@ -77,7 +77,7 @@ class FarmsListScreen extends ConsumerWidget {
         builder: (list) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: list.length + 1,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
             if (i == 0) {
               return SoftHeroBanner(

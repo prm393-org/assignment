@@ -201,7 +201,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: marketplaceRegions.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (_, i) {
                       final r = marketplaceRegions[i];
                       return MarketPillChip(
@@ -227,7 +227,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: _sortOptions.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(width: 8),
                             itemBuilder: (_, i) {
                               final opt = _sortOptions[i];
@@ -400,7 +400,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                           itemCount: shops.length + 1,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, _) =>
                               const SizedBox(height: AppSpacing.md),
                           itemBuilder: (_, i) {
                             if (i == shops.length) {

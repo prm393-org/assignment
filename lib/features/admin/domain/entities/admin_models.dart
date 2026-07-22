@@ -32,9 +32,9 @@ class AdminDashboardSummary extends Equatable {
       ]),
       newUsers7d: readInt(last7, ['newUsers', 'new_users']),
       newOrders7d: readInt(last7, ['newOrders', 'new_orders']),
-      byRole: byRoleRaw.map((k, v) => MapEntry('$k', int.tryParse('$v') ?? 0)),
+      byRole: byRoleRaw.map((k, v) => MapEntry(k, int.tryParse('$v') ?? 0)),
       ordersByStatus:
-          byStatusOrders.map((k, v) => MapEntry('$k', int.tryParse('$v') ?? 0)),
+          byStatusOrders.map((k, v) => MapEntry(k, int.tryParse('$v') ?? 0)),
     );
   }
 

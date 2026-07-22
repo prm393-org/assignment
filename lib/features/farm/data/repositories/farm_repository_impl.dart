@@ -113,8 +113,8 @@ class FarmRepositoryImpl implements FarmRepository {
       final res = await _dio.get('/diary', queryParameters: {
         'page': page,
         'limit': 50,
-        if (seasonId != null) 'seasonId': seasonId,
-        if (farmId != null) 'farmId': farmId,
+        'seasonId': ?seasonId,
+        'farmId': ?farmId,
       });
       final data = unwrapData(res.data);
       if (data is List) {

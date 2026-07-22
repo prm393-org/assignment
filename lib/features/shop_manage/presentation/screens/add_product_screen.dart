@@ -71,7 +71,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         'name': name,
         'price': price,
         'stock_qty': stockQty,
-        if (imageUrl != null) 'image_url': imageUrl,
+        'image_url': ?imageUrl,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -124,7 +124,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           padding: AppSpacing.screen,
           children: [
             DropdownButtonFormField<String>(
-              value: _saleUnitId,
+              initialValue: _saleUnitId,
               decoration: const InputDecoration(labelText: 'Đơn vị bán'),
               items: [
                 for (final u in list)

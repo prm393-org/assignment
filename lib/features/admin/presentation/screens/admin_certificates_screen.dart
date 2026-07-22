@@ -23,7 +23,7 @@ class AdminCertificatesScreen extends ConsumerWidget {
         builder: (page) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: page.items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
             final c = page.items[i];
             return Card(

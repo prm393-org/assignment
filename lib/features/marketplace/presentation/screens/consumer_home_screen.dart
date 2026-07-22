@@ -185,7 +185,7 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: marketplaceRegions.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (_, i) {
                   final r = marketplaceRegions[i];
                   final selected = region == r;
@@ -258,7 +258,7 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: list.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (_, i) {
                     final s = list[i];
                     return SizedBox(

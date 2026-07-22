@@ -48,7 +48,7 @@ class ShopManageRepositoryImpl implements ShopManageRepository {
       final res = await _dio.post('/shop', data: {
         'farm_id': farmId,
         'name': name,
-        if (description != null) 'description': description,
+        'description': ?description,
       });
       return ShopSummary.fromJson(asMap(unwrapData(res.data)));
     } catch (e) {

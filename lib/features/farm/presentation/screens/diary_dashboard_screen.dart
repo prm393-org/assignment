@@ -221,7 +221,8 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
                       });
                     }
                     return DropdownButtonFormField<String>(
-                      value: selected,
+                      key: ValueKey(selected),
+                      initialValue: selected,
                       decoration:
                           const InputDecoration(labelText: 'Nông trại'),
                       items: [
@@ -287,7 +288,8 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
                             });
                           }
                           return DropdownButtonFormField<String>(
-                            value: selected,
+                            key: ValueKey(selected),
+                            initialValue: selected,
                             decoration:
                                 const InputDecoration(labelText: 'Mùa vụ'),
                             items: [
@@ -303,7 +305,7 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
                       ),
                     const SizedBox(height: AppSpacing.md),
                     DropdownButtonFormField<String>(
-                      value: _eventType,
+                      initialValue: _eventType,
                       decoration:
                           const InputDecoration(labelText: 'Loại sự kiện'),
                       items: [
@@ -360,7 +362,7 @@ class _DiaryDashboardScreenState extends ConsumerState<DiaryDashboardScreen>
                     builder: (page) => ListView.separated(
                       padding: AppSpacing.screen,
                       itemCount: page.items.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (_, _) =>
                           const SizedBox(height: AppSpacing.md),
                       itemBuilder: (_, i) {
                         final d = page.items[i];

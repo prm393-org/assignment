@@ -89,6 +89,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         if (uri != null) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đang mở trang thanh toán')),
         );
@@ -170,23 +171,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             'Phương thức thanh toán',
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          RadioListTile<String>(
-            value: 'cod',
+          RadioGroup<String>(
             groupValue: _paymentMethod,
             onChanged: (v) => setState(() => _paymentMethod = v ?? 'cod'),
-            title: const Text('Thanh toán khi nhận hàng (COD)'),
-          ),
-          RadioListTile<String>(
-            value: 'payos',
-            groupValue: _paymentMethod,
-            onChanged: (v) => setState(() => _paymentMethod = v ?? 'payos'),
-            title: const Text('PayOS'),
-          ),
-          RadioListTile<String>(
-            value: 'vnpay',
-            groupValue: _paymentMethod,
-            onChanged: (v) => setState(() => _paymentMethod = v ?? 'vnpay'),
-            title: const Text('VNPay'),
+            child: Column(
+              children: [
+                RadioListTile<String>(
+                  value: 'cod',
+                  title: const Text('Thanh toán khi nhận hàng (COD)'),
+                ),
+                RadioListTile<String>(
+                  value: 'payos',
+                  title: const Text('PayOS'),
+                ),
+                RadioListTile<String>(
+                  value: 'vnpay',
+                  title: const Text('VNPay'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           _row('Tạm tính', Formatters.money(subtotal)),

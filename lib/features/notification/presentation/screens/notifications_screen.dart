@@ -39,7 +39,7 @@ class NotificationsScreen extends ConsumerWidget {
         builder: (page) => ListView.separated(
           padding: AppSpacing.screen,
           itemCount: page.items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
             final n = page.items[i];
             return SurfaceCard(

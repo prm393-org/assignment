@@ -121,6 +121,7 @@ class SeasonDetailScreen extends ConsumerWidget {
 
   Future<void> _addDiary(BuildContext context, WidgetRef ref) async {
     final season = await ref.read(seasonDetailProvider(seasonId).future);
+    if (!context.mounted) return;
     String eventType = 'sowing';
     final desc = TextEditingController();
     String? imageUrl;
@@ -136,7 +137,7 @@ class SeasonDetailScreen extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: eventType,
+                  initialValue: eventType,
                   items: [
                     for (final e in diaryEventLabels.entries)
                       DropdownMenuItem(value: e.key, child: Text(e.value)),

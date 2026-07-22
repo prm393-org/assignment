@@ -45,7 +45,7 @@ class OrderRepositoryImpl implements OrderRepository {
       final res = await _dio.get('/order/mine', queryParameters: {
         'page': page,
         'limit': 20,
-        if (status != null) 'status': status,
+        'status': ?status,
       });
       return PaginatedResult.fromJson(unwrapData(res.data), OrderEntity.fromJson);
     } catch (e) {
@@ -62,7 +62,7 @@ class OrderRepositoryImpl implements OrderRepository {
       final res = await _dio.get('/order/shop', queryParameters: {
         'page': page,
         'limit': 20,
-        if (status != null) 'status': status,
+        'status': ?status,
       });
       return PaginatedResult.fromJson(unwrapData(res.data), OrderEntity.fromJson);
     } catch (e) {

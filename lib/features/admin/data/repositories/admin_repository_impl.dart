@@ -30,8 +30,8 @@ class AdminRepositoryImpl implements AdminRepository {
         'page': page,
         'limit': 20,
         if (q != null && q.isNotEmpty) 'q': q,
-        if (role != null) 'role': role,
-        if (status != null) 'status': status,
+        'role': ?role,
+        'status': ?status,
       });
       return PaginatedResult.fromJson(unwrapData(res.data), AdminUser.fromJson);
     } catch (e) {
@@ -64,7 +64,7 @@ class AdminRepositoryImpl implements AdminRepository {
         'title': title,
         'body': body,
         'audience': audience,
-        if (linkPath != null) 'linkPath': linkPath,
+        'linkPath': ?linkPath,
       });
       return asMap(unwrapData(res.data));
     } catch (e) {

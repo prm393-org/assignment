@@ -58,7 +58,7 @@ class _AdminBroadcastScreenState extends ConsumerState<AdminBroadcastScreen> {
           TextField(controller: _body, decoration: const InputDecoration(labelText: 'Nội dung'), maxLines: 5),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _audience,
+            initialValue: _audience,
             decoration: const InputDecoration(labelText: 'Đối tượng'),
             items: const [
               DropdownMenuItem(value: 'all', child: Text('Tất cả')),

@@ -42,6 +42,7 @@ class _ShopDetailManageScreenState
 
   Future<void> _editShop() async {
     final shop = await ref.read(managedShopProvider(widget.shopId).future);
+    if (!mounted) return;
     final name = TextEditingController(text: shop.name);
     final desc = TextEditingController(text: shop.description ?? '');
     final ok = await showDialog<bool>(
@@ -228,7 +229,7 @@ class _ShopDetailManageScreenState
       ),
       floatingActionButton: AnimatedBuilder(
         animation: _tabs,
-        builder: (_, __) {
+        builder: (_, _) {
           if (_tabs.index != 0) return const SizedBox.shrink();
           return FloatingActionButton(
             onPressed: () =>
@@ -283,7 +284,7 @@ class _ProductsTab extends ConsumerWidget {
             builder: (list) => ListView.separated(
               padding: AppSpacing.screen,
               itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
               itemBuilder: (_, i) {
                 final p = list[i];
                 return ListTile(
@@ -410,7 +411,7 @@ class _OrdersTab extends ConsumerWidget {
         return ListView.separated(
           padding: AppSpacing.screen,
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
           itemBuilder: (_, i) {
             final o = items[i];
             return ListTile(
@@ -446,7 +447,7 @@ class _ReviewsTab extends ConsumerWidget {
       builder: (page) => ListView.separated(
         padding: AppSpacing.screen,
         itemCount: page.items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
         itemBuilder: (_, i) {
           final r = page.items[i];
           return ListTile(

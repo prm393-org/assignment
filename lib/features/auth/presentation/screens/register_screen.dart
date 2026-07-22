@@ -83,7 +83,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               DropdownButtonFormField<String>(
-                value: _role,
+                initialValue: _role,
                 decoration: const InputDecoration(labelText: 'Vai trò'),
                 items: const [
                   DropdownMenuItem(value: 'consumer', child: Text('Người mua')),
