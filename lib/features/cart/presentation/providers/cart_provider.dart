@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:chuoi_xanh_viet/core/error/firestore_exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/current_uid_provider.dart';
 import 'package:chuoi_xanh_viet/core/firebase/firestore_refs.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
@@ -202,6 +203,11 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   Future<void> addItem(CartItem item, {int quantity = 1}) async {
+    final previousQuantity = state
+            .where((e) => e.productId == item.productId)
+            .firstOrNull
+            ?.quantity ??
+        0;
     CartItem effective;
     final idx = state.indexWhere((e) => e.productId == item.productId);
     if (idx >= 0) {
@@ -217,6 +223,17 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       state = [...state, effective];
     }
     await _writeItem(effective);
+    final addedQuantity = effective.quantity - previousQuantity;
+    if (addedQuantity > 0) {
+      unawaited(AnalyticsService.logAddToCart(
+        productId: item.productId,
+        productName: item.productName,
+        shopName: item.shopName,
+        unit: item.unit,
+        price: item.price,
+        quantity: addedQuantity,
+      ));
+    }
   }
 
   Future<void> updateQuantity(String productId, int delta) async {

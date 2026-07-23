@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_role.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
@@ -67,6 +68,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
     final user = session.user;
     if (user != null) await _profileCache.write(user);
+    if (user != null) {
+      await AnalyticsService.setUser(
+        userId: user.id,
+        role: user.authRole?.name ?? user.role.toLowerCase(),
+      );
+    }
     unawaited(CrashlyticsService.breadcrumb(
       'auth_session_applied role=${user?.role ?? 'unknown'}',
     ));
@@ -80,6 +87,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_restored'));
     } else {
       state = const AuthState(isBootstrapping: false);
+      unawaited(AnalyticsService.clearUser());
       unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_guest'));
     }
   }
@@ -90,6 +98,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final session = await _repo.login(email: email, password: password);
       await _applySession(session);
+      unawaited(AnalyticsService.logLogin('email'));
       unawaited(CrashlyticsService.breadcrumb('auth_login_email_ok'));
       return true;
     } catch (e) {
@@ -113,6 +122,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return false;
       }
       await _applySession(session);
+      unawaited(AnalyticsService.logLogin('google'));
       unawaited(CrashlyticsService.breadcrumb('auth_login_google_ok'));
       return true;
     } catch (e) {
@@ -202,6 +212,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _repo.clearSession();
     state = const AuthState(isBootstrapping: false);
     await _profileCache.clear();
+    unawaited(AnalyticsService.clearUser());
     unawaited(CrashlyticsService.clearUser());
   }
 

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 
 class QrScanScreen extends StatefulWidget {
@@ -20,6 +23,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final raw = capture.barcodes.firstOrNull?.rawValue;
     if (raw == null || raw.isEmpty) return;
     _handled = true;
+    unawaited(AnalyticsService.logScanQr(
+      widget.resultPath.startsWith('/farmer') ? 'farmer' : 'consumer',
+    ));
     final code = raw.contains('/') ? raw.split('/').last : raw;
     context.pushReplacement(
       '${widget.resultPath}?code=${Uri.encodeComponent(code)}',

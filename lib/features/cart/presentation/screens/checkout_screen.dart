@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:chuoi_xanh_viet/core/config/api_config.dart';
 import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
@@ -33,6 +36,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final user = ref.read(authNotifierProvider).user;
     _name.text = user?.fullName ?? '';
     _phone.text = user?.phone ?? '';
+    final items = ref.read(cartProvider);
+    if (items.isNotEmpty) {
+      unawaited(
+        AnalyticsService.logBeginCheckout(
+          value: items.fold(0, (sum, item) => sum + item.lineTotal),
+          itemCount: items.fold(0, (sum, item) => sum + item.quantity),
+        ),
+      );
+    }
   }
 
   @override
@@ -78,6 +90,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           shippingAddress: _address.text.trim(),
           paymentMethod: _paymentMethod,
           note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+        );
+        await AnalyticsService.logPurchase(
+          transactionId: order.id,
+          value: order.totalAmount > 0
+              ? order.totalAmount
+              : g.subtotal + ApiConfig.shippingFeePerShop,
+          shipping: ApiConfig.shippingFeePerShop,
+          paymentMethod: _paymentMethod,
+          itemCount: g.items.fold(0, (sum, item) => sum + item.quantity),
         );
         await ref.read(cartProvider.notifier).removeByShop(g.shopId);
         checkoutUrl ??= order.checkoutUrl;

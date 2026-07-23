@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/widgets/role_shell.dart';
 import 'package:chuoi_xanh_viet/features/admin/presentation/screens/admin_audit_logs_screen.dart';
 import 'package:chuoi_xanh_viet/features/admin/presentation/screens/admin_broadcast_screen.dart';
@@ -60,7 +63,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   });
   ref.onDispose(refresh.dispose);
 
-  return GoRouter(
+  final router = GoRouter(
     navigatorKey: _rootKey,
     initialLocation: '/',
     refreshListenable: refresh,
@@ -635,4 +638,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  String? lastScreen;
+  void trackCurrentScreen() {
+    if (router.routerDelegate.currentConfiguration.isEmpty) return;
+    final state = router.routerDelegate.state;
+    final screen = state.fullPath ?? state.matchedLocation;
+    if (screen.isEmpty || screen == lastScreen) return;
+    lastScreen = screen;
+    unawaited(AnalyticsService.logScreenView(screen));
+  }
+
+  router.routerDelegate.addListener(trackCurrentScreen);
+  WidgetsBinding.instance.addPostFrameCallback((_) => trackCurrentScreen());
+  ref.onDispose(
+    () => router.routerDelegate.removeListener(trackCurrentScreen),
+  );
+  return router;
 });
