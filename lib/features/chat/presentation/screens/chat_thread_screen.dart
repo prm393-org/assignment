@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
+import 'package:chuoi_xanh_viet/core/firebase/push_sender.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
@@ -70,6 +74,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           .read(chatRepositoryProvider)
           .sendMessage(widget.conversationId, text);
       await ChatRtdb.publish(sent);
+      _pushToPeer(text);
       _input.clear();
       if (!_liveMessages.any((m) => m.id == sent.id)) {
         setState(() => _liveMessages.add(sent));
@@ -84,6 +89,28 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     } finally {
       if (mounted) setState(() => _sending = false);
     }
+  }
+
+  /// Pushes the message to the peer's per-user topic so they are notified
+  /// even when the app is closed. Best-effort — peer id may be unresolved.
+  void _pushToPeer(String text) {
+    final convs = ref.read(conversationsProvider).valueOrNull;
+    if (convs == null) return;
+    String? peerId;
+    for (final c in convs) {
+      if (c.id == widget.conversationId) {
+        peerId = c.peerUserId;
+        break;
+      }
+    }
+    if (peerId == null || peerId.isEmpty) return;
+    final myName = ref.read(authNotifierProvider).user?.fullName ?? 'Tin nhắn mới';
+    unawaited(PushSender.sendToTopic(
+      topic: FcmTopics.userByBackendId(peerId),
+      title: myName,
+      body: text,
+      link: '/chat/${widget.conversationId}',
+    ));
   }
 
   List<ChatMessage> _merge(List<ChatMessage> remote) {

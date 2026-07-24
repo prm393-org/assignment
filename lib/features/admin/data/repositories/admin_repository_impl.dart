@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
+import 'package:chuoi_xanh_viet/core/firebase/push_sender.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/admin/domain/entities/admin_models.dart';
 import 'package:chuoi_xanh_viet/features/admin/domain/repositories/admin_repository.dart';
@@ -66,6 +70,17 @@ class AdminRepositoryImpl implements AdminRepository {
         'audience': audience,
         'linkPath': ?linkPath,
       });
+      // Fan out as a push: "all" hits every device, otherwise the role topic.
+      final normalized = audience.trim().toLowerCase();
+      final topic = (normalized.isEmpty || normalized == 'all')
+          ? FcmTopics.broadcast
+          : FcmTopics.role(normalized);
+      unawaited(PushSender.sendToTopic(
+        topic: topic,
+        title: title,
+        body: body,
+        link: linkPath,
+      ));
       return asMap(unwrapData(res.data));
     } catch (e) {
       throw mapDioException(e);

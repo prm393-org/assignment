@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
+import 'package:chuoi_xanh_viet/core/firebase/push_sender.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/certificate/domain/entities/farm_certificate.dart';
 import 'package:chuoi_xanh_viet/features/certificate/domain/repositories/certificate_repository.dart';
@@ -56,7 +60,17 @@ class CertificateRepositoryImpl implements CertificateRepository {
   Future<FarmCertificate> approve(String id) async {
     try {
       final res = await _dio.post('/certificate/farm/$id/approve', data: {});
-      return FarmCertificate.fromJson(asMap(unwrapData(res.data)));
+      final cert = FarmCertificate.fromJson(asMap(unwrapData(res.data)));
+      // Push approval to the owning farm (farmer subscribed to farm_<id>).
+      unawaited(PushSender.sendToTopic(
+        topic: FcmTopics.farm(cert.farmId),
+        title: 'Chứng nhận được duyệt',
+        body: cert.farmName != null
+            ? 'Chứng nhận cho ${cert.farmName} đã được duyệt.'
+            : 'Chứng nhận của bạn đã được duyệt.',
+        link: '/farmer/certificates',
+      ));
+      return cert;
     } catch (e) {
       throw mapDioException(e);
     }
@@ -69,7 +83,16 @@ class CertificateRepositoryImpl implements CertificateRepository {
         '/certificate/farm/$id/reject',
         data: {'reason': reason},
       );
-      return FarmCertificate.fromJson(asMap(unwrapData(res.data)));
+      final cert = FarmCertificate.fromJson(asMap(unwrapData(res.data)));
+      unawaited(PushSender.sendToTopic(
+        topic: FcmTopics.farm(cert.farmId),
+        title: 'Chứng nhận bị từ chối',
+        body: reason.isNotEmpty
+            ? 'Lý do: $reason'
+            : 'Chứng nhận của bạn đã bị từ chối.',
+        link: '/farmer/certificates',
+      ));
+      return cert;
     } catch (e) {
       throw mapDioException(e);
     }

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/error/firestore_exception_mapper.dart';
+import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
 import 'package:chuoi_xanh_viet/core/firebase/firestore_refs.dart';
 import 'package:chuoi_xanh_viet/core/firebase/notification_writer.dart';
+import 'package:chuoi_xanh_viet/core/firebase/push_sender.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/forum/domain/entities/forum_post.dart';
@@ -257,6 +259,14 @@ class ForumRepositoryImpl implements ForumRepository {
           content:
               '${user?.fullName ?? 'Người dùng'} đã bình luận về bài viết của bạn',
           type: 'forum',
+          link: '/consumer/forum/$postId',
+        ));
+        // Forum authors are keyed by Firebase uid, so push straight to u_<uid>.
+        unawaited(PushSender.sendToTopic(
+          topic: FcmTopics.userByFirebaseUid(postAuthorId),
+          title: 'Bình luận mới',
+          body:
+              '${user?.fullName ?? 'Người dùng'} đã bình luận về bài viết của bạn',
           link: '/consumer/forum/$postId',
         ));
       }

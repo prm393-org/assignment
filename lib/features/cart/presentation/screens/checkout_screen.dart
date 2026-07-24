@@ -9,10 +9,12 @@ import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
+import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/cart/presentation/providers/cart_provider.dart';
+import 'package:chuoi_xanh_viet/features/notification/presentation/providers/messaging_providers.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/providers/order_providers.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
@@ -99,6 +101,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           shipping: ApiConfig.shippingFeePerShop,
           paymentMethod: _paymentMethod,
           itemCount: g.items.fold(0, (sum, item) => sum + item.quantity),
+        );
+        // Subscribe the buyer to this order's topic so seller status changes
+        // arrive as a push even when the app is closed.
+        unawaited(
+          ref.read(messagingServiceProvider).subscribe(FcmTopics.order(order.id)),
         );
         await ref.read(cartProvider.notifier).removeByShop(g.shopId);
         checkoutUrl ??= order.checkoutUrl;
