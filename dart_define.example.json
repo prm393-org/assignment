@@ -1,0 +1,4 @@
+{
+  "PUSH_ENDPOINT": "https://<region>-<project>.cloudfunctions.net/send",
+  "PUSH_API_KEY": "<the PUSH_API_KEY secret set on the function>"
+}

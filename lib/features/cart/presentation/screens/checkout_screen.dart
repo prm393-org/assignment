@@ -9,7 +9,9 @@ import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
+import 'package:chuoi_xanh_viet/core/firebase/current_uid_provider.dart';
 import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
+import 'package:chuoi_xanh_viet/core/firebase/push_sender.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
@@ -68,6 +70,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _address.text.trim().isNotEmpty;
   }
 
+  /// Confirms the checkout to the buyer's own device.
+  ///
+  /// Deliberately targets the buyer's user topic, not `order_<id>`: that one is
+  /// only subscribed moments earlier in this same flow, and FCM drops a topic
+  /// message for devices that subscribe after it is sent. `u_<uid>` has been
+  /// subscribed since sign-in, so it is always live.
+  void _pushOrderPlacedConfirmation(List<String> orderIds) {
+    if (orderIds.isEmpty) return;
+    final uid = ref.read(currentFirebaseUidProvider);
+    if (uid == null || uid.isEmpty) return;
+    final isSingle = orderIds.length == 1;
+    unawaited(PushSender.sendToTopic(
+      topic: FcmTopics.userByFirebaseUid(uid),
+      title: 'Đặt hàng thành công',
+      body: isSingle
+          ? 'Đơn hàng của bạn đã được ghi nhận.'
+          : 'Đã ghi nhận ${orderIds.length} đơn hàng của bạn.',
+      link: isSingle ? '/consumer/orders/${orderIds.first}' : '/consumer/orders',
+    ));
+  }
+
   Future<void> _placeOrders() async {
     if (!_formKey.currentState!.validate()) return;
     final items = ref.read(cartProvider);
@@ -80,6 +103,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final repo = ref.read(orderRepositoryProvider);
       String? checkoutUrl;
+      final placedOrderIds = <String>[];
       for (final g in groups) {
         await CrashlyticsService.breadcrumb(
           'checkout_create_order shop=${g.shopId} items=${g.items.length}',
@@ -110,9 +134,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         unawaited(
           ref.read(messagingServiceProvider).subscribe(FcmTopics.order(order.id)),
         );
+        placedOrderIds.add(order.id);
         await ref.read(cartProvider.notifier).removeByShop(g.shopId);
         checkoutUrl ??= order.checkoutUrl;
       }
+      _pushOrderPlacedConfirmation(placedOrderIds);
       await CrashlyticsService.breadcrumb('checkout_success payment=$_paymentMethod');
       if (!mounted) return;
       // IndexedStack keeps Orders tab alive — force refetch before navigating.
