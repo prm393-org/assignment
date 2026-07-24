@@ -103,7 +103,7 @@ class SoftHeroBanner extends StatelessWidget {
           colors: [
             AppColors.forest,
             AppColors.forestSoft,
-            Color(0xFF1FA35A),
+            AppColors.forestBright,
           ],
         ),
         boxShadow: const [
@@ -122,17 +122,19 @@ class SoftHeroBanner extends StatelessWidget {
             child: Icon(
               icon,
               size: 96,
-              color: Colors.white.withValues(alpha: 0.12),
+              color: AppColors.onPrimary.withValues(alpha: 0.12),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
+                  color: AppColors.onPrimary.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: const Text(
@@ -492,14 +494,17 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg) = switch (tone) {
-      StatusTone.success => (const Color(0xFFD1FAE5), AppColors.success),
-      StatusTone.warning => (const Color(0xFFFEF3C7), AppColors.warning),
-      StatusTone.danger => (const Color(0xFFFEE2E2), AppColors.error),
+      StatusTone.success => (AppColors.successSoft, AppColors.success),
+      StatusTone.warning => (AppColors.warningSoft, AppColors.warning),
+      StatusTone.danger => (AppColors.dangerSoft, AppColors.error),
       StatusTone.info => (AppColors.mint, AppColors.forest),
       StatusTone.neutral => (AppColors.surfaceElevated, AppColors.body),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
@@ -538,7 +543,7 @@ class PageHeader extends StatelessWidget {
         children: [
           if (icon != null) ...[
             IconBadge(icon: icon!),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppSpacing.md),
           ],
           Expanded(
             child: Column(

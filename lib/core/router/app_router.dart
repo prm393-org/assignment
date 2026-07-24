@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
+import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/core/widgets/role_shell.dart';
 import 'package:chuoi_xanh_viet/features/admin/presentation/screens/admin_audit_logs_screen.dart';
 import 'package:chuoi_xanh_viet/features/admin/presentation/screens/admin_broadcast_screen.dart';
@@ -56,6 +57,33 @@ import 'package:chuoi_xanh_viet/features/trace/presentation/screens/trace_resolv
 
 final _rootKey = GlobalKey<NavigatorState>();
 
+/// Guest may browse marketplace/forum read-only; write routes require login.
+bool _isGuestBrowsePath(String loc) {
+  if (loc.startsWith('/trace')) return true;
+  if (loc == '/qr-scan') return true;
+
+  const exact = {
+    '/consumer/home',
+    '/consumer/marketplace',
+    '/consumer/forum',
+    '/consumer/orders',
+    '/consumer/me',
+    '/consumer/cart',
+    '/consumer/trace',
+    '/consumer/trace/scan',
+  };
+  if (exact.contains(loc)) return true;
+  if (loc.startsWith('/consumer/product/')) return true;
+  if (loc.startsWith('/consumer/shop/')) return true;
+  // Forum post detail (not create/edit).
+  final forumDetail = RegExp(r'^/consumer/forum/([^/]+)$').firstMatch(loc);
+  if (forumDetail != null) {
+    final id = forumDetail.group(1)!;
+    return id != 'create';
+  }
+  return false;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen<AuthState>(authNotifierProvider, (_, _) {
@@ -85,10 +113,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return loc == '/' ? null : '/';
       }
       if (!loggedIn) {
-        final isGuestOk = loc.startsWith('/consumer') ||
-            loc.startsWith('/trace') ||
-            loc == '/qr-scan' ||
-            (isAuthRoute && loc != '/');
+        final isGuestOk =
+            _isGuestBrowsePath(loc) || (isAuthRoute && loc != '/');
         if (loc == '/') return '/welcome';
         if (isGuestOk) return null;
         return '/login';
@@ -134,6 +160,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/welcome',
         builder: (_, _) => const WelcomeScreen(),
+      ),
+      GoRoute(
+        path: '/qr-scan',
+        redirect: (_, _) => '/consumer/trace/scan',
       ),
       GoRoute(
         path: '/profile/edit',
@@ -426,9 +456,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final id = state.pathParameters['id']!;
           return Consumer(
             builder: (context, ref, _) {
-              final farms = ref.watch(myFarmsProvider).valueOrNull ?? [];
-              final farm = farms.where((f) => f.id == id).firstOrNull;
-              return FarmFormScreen(farm: farm);
+              final async = ref.watch(myFarmsProvider);
+              return async.when(
+                loading: () => const Scaffold(
+                  body: LoadingView(message: 'Đang tải nông trại…'),
+                ),
+                error: (e, _) => Scaffold(
+                  appBar: AppBar(title: const Text('Sửa nông trại')),
+                  body: ErrorState(
+                    message: e.toString(),
+                    onRetry: () => ref.invalidate(myFarmsProvider),
+                  ),
+                ),
+                data: (farms) {
+                  final farm = farms.where((f) => f.id == id).firstOrNull;
+                  if (farm == null) {
+                    return Scaffold(
+                      appBar: AppBar(title: const Text('Sửa nông trại')),
+                      body: EmptyState(
+                        message: 'Không tìm thấy nông trại',
+                        actionLabel: 'Quay lại',
+                        onAction: () => context.pop(),
+                      ),
+                    );
+                  }
+                  return FarmFormScreen(farm: farm);
+                },
+              );
             },
           );
         },

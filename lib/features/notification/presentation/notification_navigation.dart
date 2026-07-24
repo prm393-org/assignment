@@ -21,10 +21,11 @@ String? resolveNotificationRoute(
   final pathOnly = uri?.path ?? path.split('?').first;
   final query = uri?.queryParameters ?? const <String, String>{};
 
+  // Cooperative uses consumer shell; admin has no forum routes.
   final prefix = switch (role) {
     AuthRole.farmer => '/farmer',
     AuthRole.admin => '/admin',
-    AuthRole.cooperative => '/farmer',
+    AuthRole.cooperative => '/consumer',
     _ => '/consumer',
   };
 
@@ -33,32 +34,46 @@ String? resolveNotificationRoute(
     if (conversationId != null && conversationId.isNotEmpty) {
       return '$prefix/chat/$conversationId';
     }
-    return '/chat';
+    return '$prefix/chat';
   }
 
   final forumId = RegExp(r'/forum/([^/?]+)').firstMatch(pathOnly)?.group(1);
   if (forumId != null && forumId != 'create' && forumId != 'edit') {
-    if (pathOnly.startsWith('/farmer')) return '/farmer/forum/$forumId';
-    if (pathOnly.startsWith('/admin')) return '/admin/forum/$forumId';
-    return '$prefix/forum/$forumId';
+    if (role == AuthRole.admin) {
+      return '/admin/home';
+    }
+    if (pathOnly.startsWith('/farmer') || role == AuthRole.farmer) {
+      return '/farmer/forum/$forumId';
+    }
+    return '/consumer/forum/$forumId';
   }
 
   final orderId = RegExp(r'/orders?/([^/?]+)').firstMatch(pathOnly)?.group(1);
   if (orderId != null) {
-    if (pathOnly.contains('/farmer')) return '/farmer/orders/$orderId';
+    if (pathOnly.contains('/farmer') || role == AuthRole.farmer) {
+      return '/farmer/orders/$orderId';
+    }
     return '/consumer/orders/$orderId';
+  }
+
+  if (pathOnly == '/qr-scan' || pathOnly.startsWith('/qr-scan')) {
+    return '/consumer/trace/scan';
   }
 
   if (pathOnly.startsWith('/consumer') ||
       pathOnly.startsWith('/farmer') ||
       pathOnly.startsWith('/admin') ||
       pathOnly.startsWith('/chat') ||
-      pathOnly.startsWith('/trace') ||
-      pathOnly.startsWith('/qr-scan')) {
+      pathOnly.startsWith('/trace')) {
+    // Rewrite admin forum deep links that have no matching routes.
+    if (pathOnly.startsWith('/admin/forum')) {
+      return role == AuthRole.admin ? '/admin/home' : '/consumer/forum';
+    }
     return pathOnly;
   }
 
   if (pathOnly == '/forum' || pathOnly.startsWith('/forum/')) {
+    if (role == AuthRole.admin) return '/admin/home';
     return '$prefix$pathOnly';
   }
 

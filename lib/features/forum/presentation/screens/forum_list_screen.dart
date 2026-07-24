@@ -7,6 +7,7 @@ import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/providers/forum_providers.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/widgets/forum_label_chip.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/widgets/forum_post_card.dart';
@@ -50,13 +51,14 @@ class _ForumListScreenState extends ConsumerState<ForumListScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(forumPostsProvider(_query));
     final textTheme = Theme.of(context).textTheme;
+    final isAuthenticated = ref.watch(authNotifierProvider).isAuthenticated;
 
     return Scaffold(
       backgroundColor: AppColors.canvasSoft,
       appBar: AppBar(
         backgroundColor: AppColors.canvas,
         surfaceTintColor: Colors.transparent,
-        titleSpacing: 16,
+        titleSpacing: AppSpacing.lg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -72,7 +74,13 @@ class _ForumListScreenState extends ConsumerState<ForumListScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('${widget.basePath}/forum/create'),
+        onPressed: () {
+          if (!isAuthenticated) {
+            context.push('/login');
+            return;
+          }
+          context.push('${widget.basePath}/forum/create');
+        },
         backgroundColor: AppColors.forest,
         foregroundColor: AppColors.onPrimary,
         elevation: 2,
@@ -156,8 +164,13 @@ class _ForumListScreenState extends ConsumerState<ForumListScreen> {
                   itemBuilder: (_, i) {
                     if (i == 0) {
                       return _ForumIntroBanner(
-                        onWrite: () =>
-                            context.push('${widget.basePath}/forum/create'),
+                        onWrite: () {
+                          if (!isAuthenticated) {
+                            context.push('/login');
+                            return;
+                          }
+                          context.push('${widget.basePath}/forum/create');
+                        },
                       );
                     }
                     final p = page.items[i - 1];

@@ -12,6 +12,7 @@ class AdminBroadcastScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminBroadcastScreenState extends ConsumerState<AdminBroadcastScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _body = TextEditingController();
   String _audience = 'all';
@@ -24,7 +25,11 @@ class _AdminBroadcastScreenState extends ConsumerState<AdminBroadcastScreen> {
     super.dispose();
   }
 
+  bool get _isFormValid =>
+      _title.text.trim().isNotEmpty && _body.text.trim().isNotEmpty;
+
   Future<void> _send() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
       final result = await ref.read(adminRepositoryProvider).broadcast(
@@ -50,27 +55,48 @@ class _AdminBroadcastScreenState extends ConsumerState<AdminBroadcastScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Broadcast thông báo')),
-      body: ListView(
-        padding: AppSpacing.screen,
-        children: [
-          TextField(controller: _title, decoration: const InputDecoration(labelText: 'Tiêu đề')),
-          const SizedBox(height: 12),
-          TextField(controller: _body, decoration: const InputDecoration(labelText: 'Nội dung'), maxLines: 5),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _audience,
-            decoration: const InputDecoration(labelText: 'Đối tượng'),
-            items: const [
-              DropdownMenuItem(value: 'all', child: Text('Tất cả')),
-              DropdownMenuItem(value: 'consumers', child: Text('Người mua')),
-              DropdownMenuItem(value: 'farmers', child: Text('Nông dân')),
-              DropdownMenuItem(value: 'cooperatives', child: Text('HTX')),
-            ],
-            onChanged: (v) => setState(() => _audience = v ?? 'all'),
-          ),
-          const SizedBox(height: 24),
-          FilledButton(onPressed: _loading ? null : _send, child: const Text('Gửi')),
-        ],
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: AppSpacing.screen,
+          children: [
+            TextFormField(
+              controller: _title,
+              decoration: const InputDecoration(labelText: 'Tiêu đề'),
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập tiêu đề'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _body,
+              decoration: const InputDecoration(labelText: 'Nội dung'),
+              maxLines: 5,
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập nội dung'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<String>(
+              initialValue: _audience,
+              decoration: const InputDecoration(labelText: 'Đối tượng'),
+              items: const [
+                DropdownMenuItem(value: 'all', child: Text('Tất cả')),
+                DropdownMenuItem(value: 'consumers', child: Text('Người mua')),
+                DropdownMenuItem(value: 'farmers', child: Text('Nông dân')),
+                DropdownMenuItem(value: 'cooperatives', child: Text('HTX')),
+              ],
+              onChanged: (v) => setState(() => _audience = v ?? 'all'),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            FilledButton(
+              onPressed: _loading || !_isFormValid ? null : _send,
+              child: const Text('Gửi'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -8,7 +8,9 @@ import 'package:chuoi_xanh_viet/core/widgets/app_network_image.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/cart/presentation/providers/cart_provider.dart';
+import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/providers/marketplace_providers.dart';
+import 'package:chuoi_xanh_viet/features/marketplace/presentation/widgets/market_filter_sheet.dart';
 import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 
 class ConsumerHomeScreen extends ConsumerStatefulWidget {
@@ -33,7 +35,10 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
     final shops = ref.watch(highlightShopsProvider);
     final cartCount = ref.watch(cartCountProvider);
     final region = ref.watch(marketplaceRegionProvider);
-    final unreadNotif = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
+    final isAuthenticated = ref.watch(authNotifierProvider).isAuthenticated;
+    final unreadNotif = isAuthenticated
+        ? (ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0)
+        : 0;
 
     return Scaffold(
       backgroundColor: AppColors.canvasSoft,
@@ -66,7 +71,13 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
             children: [
               _roundAction(
                 icon: Icons.notifications_none_rounded,
-                onTap: () => context.push('/consumer/notifications'),
+                onTap: () {
+                  if (!isAuthenticated) {
+                    context.push('/login');
+                    return;
+                  }
+                  context.push('/consumer/notifications');
+                },
               ),
               if (unreadNotif > 0)
                 Positioned(
@@ -144,79 +155,87 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
               onAction: () => context.go('/consumer/marketplace'),
             ),
             const SizedBox(height: AppSpacing.lg),
-            TextField(
-              controller: _search,
-              decoration: InputDecoration(
-                hintText: 'Tìm sản phẩm, gian hàng...',
-                filled: true,
-                fillColor: AppColors.surface,
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.muted,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.hairline),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.hairline),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppColors.mintDeep),
-                ),
-              ),
-              textInputAction: TextInputAction.search,
-              onSubmitted: (v) {
-                final q = v.trim();
-                if (q.isEmpty) {
-                  context.go('/consumer/marketplace');
-                } else {
-                  context.push(
-                    '/consumer/marketplace?q=${Uri.encodeComponent(q)}',
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: marketplaceRegions.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (_, i) {
-                  final r = marketplaceRegions[i];
-                  final selected = region == r;
-                  return FilterChip(
-                    label: Text(r),
-                    selected: selected,
-                    showCheckmark: false,
-                    selectedColor: AppColors.forest,
-                    labelStyle: TextStyle(
-                      color: selected ? AppColors.onPrimary : AppColors.body,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    side: BorderSide(
-                      color: selected ? AppColors.forest : AppColors.hairline,
-                    ),
-                    backgroundColor: AppColors.surface,
-                    onSelected: (_) => ref
-                        .read(marketplaceRegionProvider.notifier)
-                        .setRegion(r),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
+                Expanded(
+                  child: TextField(
+                    controller: _search,
+                    decoration: InputDecoration(
+                      hintText: 'Tìm sản phẩm, gian hàng...',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: AppColors.muted,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.hairline),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.hairline),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.mintDeep),
+                      ),
+                    ),
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (v) {
+                      final q = v.trim();
+                      if (q.isEmpty) {
+                        context.go('/consumer/marketplace');
+                      } else {
+                        context.push(
+                          '/consumer/marketplace?q=${Uri.encodeComponent(q)}',
+                        );
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                MarketFilterButton(
+                  activeCount: region == 'Tất cả' ? 0 : 1,
+                  onPressed: () async {
+                    final result = await showMarketFilterSheet(
+                      context,
+                      region: region,
+                      sort: 'newest',
+                      minPrice: '',
+                      maxPrice: '',
+                      sortOptions: const [('newest', 'Mới nhất')],
+                      showSortAndPrice: false,
+                    );
+                    if (result == null || !mounted) return;
+                    await ref
+                        .read(marketplaceRegionProvider.notifier)
+                        .setRegion(result.region);
+                  },
+                ),
+              ],
+            ),
+            if (region != 'Tất cả') ...[
+              const SizedBox(height: AppSpacing.sm),
+              MarketActiveFilterChips(
+                horizontalPadding: 0,
+                chips: [
+                  MarketActiveChip(
+                    label: region,
+                    onRemove: () => ref
+                        .read(marketplaceRegionProvider.notifier)
+                        .setRegion('Tất cả'),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            const Row(
+              children: [
                 _TrustChip(icon: Icons.verified, label: 'Xác minh'),
-                const SizedBox(width: 8),
+                SizedBox(width: AppSpacing.sm),
                 _TrustChip(icon: Icons.eco_outlined, label: 'VietGAP'),
-                const SizedBox(width: 8),
+                SizedBox(width: AppSpacing.sm),
                 _TrustChip(icon: Icons.qr_code_2, label: 'QR truy xuất'),
               ],
             ),

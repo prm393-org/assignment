@@ -49,7 +49,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               onRetry: () => ref.invalidate(adminUsersProvider(_q)),
               isEmpty: (page) => page.items.isEmpty,
               emptyMessage: 'Không có người dùng phù hợp',
-              builder: (page) => ListView.separated(
+              emptyIcon: Icons.people_outline_rounded,
+              builder: (page) => RefreshIndicator(
+                color: AppColors.forest,
+                onRefresh: () async {
+                  ref.invalidate(adminUsersProvider(_q));
+                  await ref.read(adminUsersProvider(_q).future);
+                },
+                child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: AppSpacing.screen,
                 itemCount: page.items.length,
                 separatorBuilder: (_, _) =>
@@ -61,7 +69,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                       : '?';
                   final active = u.status.toLowerCase() == 'active';
                   return SurfaceCard(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Row(
                       children: [
                         CircleAvatar(
@@ -75,7 +83,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,15 +92,15 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                                 u.fullName,
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: AppSpacing.xs),
                               Text(
                                 u.email ?? u.phone ?? '—',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: AppSpacing.sm),
                               Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.sm,
                                 children: [
                                   StatusChip(
                                     label: u.role,
@@ -142,6 +150,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                     ),
                   );
                 },
+              ),
               ),
             ),
           ),

@@ -20,6 +20,7 @@ class FarmFormScreen extends ConsumerStatefulWidget {
 }
 
 class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _area = TextEditingController();
   final _crop = TextEditingController();
@@ -41,6 +42,11 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
   bool _loadingAddress = false;
   bool _loadingGps = false;
   bool _loadingGeocode = false;
+
+  bool get _isFormValid =>
+      _name.text.trim().isNotEmpty &&
+      _area.text.trim().isNotEmpty &&
+      _crop.text.trim().isNotEmpty;
 
   @override
   void initState() {
@@ -231,6 +237,7 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
     if (_provinceCode == null || _districtCode == null || _wardCode == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chọn đủ Tỉnh / Quận / Phường')),
@@ -246,7 +253,7 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
         _wards.where((w) => w.code == _wardCode).firstOrNull?.name ?? '';
     final body = {
       'name': _name.text.trim(),
-      'area_ha': double.tryParse(_area.text) ?? 0,
+      'area_ha': double.parse(_area.text.trim()),
       'crop_main': _crop.text.trim(),
       'in_cooperative': false,
       'province': provinceName,
@@ -286,140 +293,161 @@ class _FarmFormScreenState extends ConsumerState<FarmFormScreen> {
       appBar: AppBar(
         title: Text(widget.farm == null ? 'Tạo nông trại' : 'Sửa nông trại'),
       ),
-      body: ListView(
-        padding: AppSpacing.screen,
-        children: [
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Tên nông trại'),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _area,
-            decoration: const InputDecoration(labelText: 'Diện tích (ha)'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _crop,
-            decoration: const InputDecoration(labelText: 'Cây trồng chính'),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          DropdownButtonFormField<int>(
-            key: ValueKey('province_$_provinceCode'),
-            initialValue: _provinceCode,
-            decoration: const InputDecoration(labelText: 'Tỉnh/TP'),
-            items: [
-              for (final p in _provinces)
-                DropdownMenuItem(value: p.code, child: Text(p.name)),
-            ],
-            onChanged: _loadingAddress
-                ? null
-                : (v) {
-                    if (v != null) _loadDistricts(v);
-                  },
-          ),
-          const SizedBox(height: AppSpacing.md),
-          DropdownButtonFormField<int>(
-            key: ValueKey('district_${_provinceCode}_$_districtCode'),
-            initialValue: _districtCode,
-            decoration: const InputDecoration(labelText: 'Quận/Huyện'),
-            items: [
-              for (final d in _districts)
-                DropdownMenuItem(value: d.code, child: Text(d.name)),
-            ],
-            onChanged: _loadingAddress || _provinceCode == null
-                ? null
-                : (v) {
-                    if (v != null) _loadWards(v);
-                  },
-          ),
-          const SizedBox(height: AppSpacing.md),
-          DropdownButtonFormField<int>(
-            key: ValueKey('ward_${_districtCode}_$_wardCode'),
-            initialValue: _wardCode,
-            decoration: const InputDecoration(labelText: 'Phường/Xã'),
-            items: [
-              for (final w in _wards)
-                DropdownMenuItem(value: w.code, child: Text(w.name)),
-            ],
-            onChanged: _loadingAddress || _districtCode == null
-                ? null
-                : (v) => setState(() => _wardCode = v),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _address,
-            decoration: const InputDecoration(labelText: 'Địa chỉ chi tiết'),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loadingGps ? null : _getGps,
-                  icon: _loadingGps
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.my_location),
-                  label: const Text('Lấy GPS'),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: AppSpacing.screen,
+          children: [
+            TextFormField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Tên nông trại'),
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập tên nông trại'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _area,
+              decoration: const InputDecoration(labelText: 'Diện tích (ha)'),
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Vui lòng nhập diện tích';
+                }
+                if (double.tryParse(v.trim()) == null) {
+                  return 'Diện tích không hợp lệ';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _crop,
+              decoration: const InputDecoration(labelText: 'Cây trồng chính'),
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập cây trồng chính'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<int>(
+              key: ValueKey('province_$_provinceCode'),
+              initialValue: _provinceCode,
+              decoration: const InputDecoration(labelText: 'Tỉnh/TP'),
+              items: [
+                for (final p in _provinces)
+                  DropdownMenuItem(value: p.code, child: Text(p.name)),
+              ],
+              onChanged: _loadingAddress
+                  ? null
+                  : (v) {
+                      if (v != null) _loadDistricts(v);
+                    },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<int>(
+              key: ValueKey('district_${_provinceCode}_$_districtCode'),
+              initialValue: _districtCode,
+              decoration: const InputDecoration(labelText: 'Quận/Huyện'),
+              items: [
+                for (final d in _districts)
+                  DropdownMenuItem(value: d.code, child: Text(d.name)),
+              ],
+              onChanged: _loadingAddress || _provinceCode == null
+                  ? null
+                  : (v) {
+                      if (v != null) _loadWards(v);
+                    },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            DropdownButtonFormField<int>(
+              key: ValueKey('ward_${_districtCode}_$_wardCode'),
+              initialValue: _wardCode,
+              decoration: const InputDecoration(labelText: 'Phường/Xã'),
+              items: [
+                for (final w in _wards)
+                  DropdownMenuItem(value: w.code, child: Text(w.name)),
+              ],
+              onChanged: _loadingAddress || _districtCode == null
+                  ? null
+                  : (v) => setState(() => _wardCode = v),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _address,
+              decoration: const InputDecoration(labelText: 'Địa chỉ chi tiết'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _loadingGps ? null : _getGps,
+                    icon: _loadingGps
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.my_location),
+                    label: const Text('Lấy GPS'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _loadingGeocode ? null : _geocodeAddress,
-                  icon: _loadingGeocode
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.search),
-                  label: const Text('Geocode địa chỉ'),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _loadingGeocode ? null : _geocodeAddress,
+                    icon: _loadingGeocode
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.search),
+                    label: const Text('Geocode địa chỉ'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _lat,
-            decoration: const InputDecoration(labelText: 'Vĩ độ'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _lng,
-            decoration: const InputDecoration(labelText: 'Kinh độ'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _imageUrl,
-            decoration: const InputDecoration(labelText: 'URL ảnh'),
-            readOnly: true,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: _uploading ? null : _pickAndUpload,
-            icon: _uploading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.photo_library_outlined),
-            label: Text(_uploading ? 'Đang tải...' : 'Chọn & tải ảnh'),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: _loading ? null : _save,
-            child: const Text('Lưu'),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _lat,
+              decoration: const InputDecoration(labelText: 'Vĩ độ'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _lng,
+              decoration: const InputDecoration(labelText: 'Kinh độ'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _imageUrl,
+              decoration: const InputDecoration(labelText: 'URL ảnh'),
+              readOnly: true,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: _uploading ? null : _pickAndUpload,
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.photo_library_outlined),
+              label: Text(_uploading ? 'Đang tải...' : 'Chọn & tải ảnh'),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            FilledButton(
+              onPressed: _loading || !_isFormValid ? null : _save,
+              child: const Text('Lưu'),
+            ),
+          ],
+        ),
       ),
     );
   }

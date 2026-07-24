@@ -36,7 +36,17 @@ class ShopManageScreen extends ConsumerWidget {
         onRetry: () => ref.invalidate(myShopsProvider),
         isEmpty: (list) => list.isEmpty,
         emptyMessage: 'Chưa có gian hàng — tạo shop để đăng bán sản phẩm',
-        builder: (list) => ListView.separated(
+        emptyActionLabel: 'Tạo shop',
+        onEmptyAction: () => _createShop(context, ref),
+        emptyIcon: Icons.storefront_outlined,
+        builder: (list) => RefreshIndicator(
+          color: AppColors.forest,
+          onRefresh: () async {
+            ref.invalidate(myShopsProvider);
+            await ref.read(myShopsProvider.future);
+          },
+          child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: AppSpacing.screen,
           itemCount: list.length + 1,
           separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
@@ -53,7 +63,7 @@ class ShopManageScreen extends ConsumerWidget {
             final s = list[i - 1];
             final open = s.status.toLowerCase() == 'open';
             return SurfaceCard(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(AppSpacing.md),
               onTap: () => context.push('/farmer/shop/${s.id}'),
               child: Row(
                 children: [
@@ -62,7 +72,7 @@ class ShopManageScreen extends ConsumerWidget {
                     size: 56,
                     color: AppColors.mintDeep,
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,6 +103,7 @@ class ShopManageScreen extends ConsumerWidget {
             );
           },
         ),
+        ),
       ),
     );
   }
@@ -102,7 +113,13 @@ class ShopManageScreen extends ConsumerWidget {
     if (farms.isEmpty) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cần tạo nông trại trước')),
+        SnackBar(
+          content: const Text('Cần tạo nông trại trước'),
+          action: SnackBarAction(
+            label: 'Tạo',
+            onPressed: () => context.push('/farmer/farms/create'),
+          ),
+        ),
       );
       return;
     }

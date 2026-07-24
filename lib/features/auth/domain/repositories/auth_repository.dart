@@ -46,6 +46,10 @@ abstract class AuthRepository {
 
   Future<AuthSession?> restoreSession();
 
+  /// Re-issues backend HS256 JWT when Firebase session is still alive
+  /// (Google bridge). Returns null if refresh is not possible.
+  Future<AuthSession?> refreshBackendJwt();
+
   Future<void> persistSession(AuthSession session);
 
   Future<void> clearSession();

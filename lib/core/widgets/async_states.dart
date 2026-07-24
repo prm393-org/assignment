@@ -86,10 +86,12 @@ class ErrorState extends StatelessWidget {
     super.key,
     required this.message,
     this.onRetry,
+    this.retryLabel = 'Thử lại',
   });
 
   final String message;
   final VoidCallback? onRetry;
+  final String retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -122,8 +124,12 @@ class ErrorState extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               OutlinedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Thử lại'),
+                icon: Icon(
+                  retryLabel == 'Mở cài đặt'
+                      ? Icons.settings_rounded
+                      : Icons.refresh_rounded,
+                ),
+                label: Text(retryLabel),
               ),
             ],
           ],
@@ -140,6 +146,9 @@ class AsyncBody<T> extends StatelessWidget {
     required this.builder,
     this.onRetry,
     this.emptyMessage = 'Không có dữ liệu',
+    this.emptyActionLabel,
+    this.onEmptyAction,
+    this.emptyIcon = Icons.inbox_outlined,
     this.isEmpty,
   });
 
@@ -147,6 +156,9 @@ class AsyncBody<T> extends StatelessWidget {
   final Widget Function(T data) builder;
   final VoidCallback? onRetry;
   final String emptyMessage;
+  final String? emptyActionLabel;
+  final VoidCallback? onEmptyAction;
+  final IconData emptyIcon;
   final bool Function(T data)? isEmpty;
 
   @override
@@ -162,7 +174,12 @@ class AsyncBody<T> extends StatelessWidget {
     }
     final data = value.requireValue;
     if (isEmpty?.call(data) ?? false) {
-      return EmptyState(message: emptyMessage);
+      return EmptyState(
+        message: emptyMessage,
+        icon: emptyIcon,
+        actionLabel: emptyActionLabel,
+        onAction: onEmptyAction,
+      );
     }
     return builder(data);
   }

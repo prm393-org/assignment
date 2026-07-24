@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
@@ -7,7 +8,9 @@ import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/certificate/presentation/providers/certificate_providers.dart';
+import 'package:chuoi_xanh_viet/features/farm/domain/entities/farm.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
 import 'package:chuoi_xanh_viet/features/upload/presentation/providers/upload_providers.dart';
 
@@ -19,42 +22,80 @@ class CertificatesScreen extends ConsumerWidget {
     final async = ref.watch(myCertificatesProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Chứng nhận')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _submit(context, ref),
-        child: const Icon(Icons.upload_file),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _onFab(context, ref),
+        icon: const Icon(Icons.upload_file),
+        label: const Text('Nộp chứng nhận'),
       ),
       body: AsyncBody(
         value: async.asLike,
         onRetry: () => ref.invalidate(myCertificatesProvider),
         isEmpty: (page) => page.items.isEmpty,
-        emptyMessage: 'Chưa có chứng nhận',
-        builder: (page) => ListView.separated(
-          padding: AppSpacing.screen,
-          itemCount: page.items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final c = page.items[i];
-            return ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.hairline),
-              ),
-              title: Text('${c.type.toUpperCase()} · ${c.certificateNo ?? ''}'),
-              subtitle: Text(
-                '${c.farmName ?? ''} · ${c.status}\n${Formatters.date(c.issuedAt)}',
-              ),
-              isThreeLine: true,
-            );
+        emptyMessage: 'Chưa có chứng nhận — nộp hồ sơ để xác minh nông trại',
+        emptyActionLabel: 'Nộp chứng nhận',
+        onEmptyAction: () => _onFab(context, ref),
+        emptyIcon: Icons.verified_outlined,
+        builder: (page) => RefreshIndicator(
+          color: AppColors.forest,
+          onRefresh: () async {
+            ref.invalidate(myCertificatesProvider);
+            await ref.read(myCertificatesProvider.future);
           },
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: AppSpacing.screen,
+            itemCount: page.items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (_, i) {
+              final c = page.items[i];
+              return SurfaceCard(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${c.type.toUpperCase()} · ${c.certificateNo ?? ''}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '${c.farmName ?? ''} · ${c.status}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      Formatters.date(c.issuedAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _submit(BuildContext context, WidgetRef ref) async {
+  Future<void> _onFab(BuildContext context, WidgetRef ref) async {
     final farms = await ref.read(myFarmsProvider.future);
-    if (farms.isEmpty) return;
+    if (farms.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hãy tạo nông trại trước')),
+      );
+      context.push('/farmer/farms/create');
+      return;
+    }
     if (!context.mounted) return;
+    await _submit(context, ref, farms);
+  }
+
+  Future<void> _submit(
+    BuildContext context,
+    WidgetRef ref,
+    List<Farm> farms,
+  ) async {
     String farmId = farms.first.id;
     final no = TextEditingController();
     final issuer = TextEditingController(text: 'VietGAP');
@@ -91,10 +132,10 @@ class CertificatesScreen extends ConsumerWidget {
                   decoration: const InputDecoration(labelText: 'URL file'),
                   readOnly: true,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 if (uploading)
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
                     child: CircularProgressIndicator(),
                   )
                 else
@@ -134,7 +175,7 @@ class CertificatesScreen extends ConsumerWidget {
                           label: const Text('Ảnh'),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
