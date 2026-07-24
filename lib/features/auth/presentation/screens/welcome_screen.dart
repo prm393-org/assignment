@@ -22,7 +22,7 @@ class WelcomeScreen extends StatelessWidget {
                 colors: [
                   AppColors.darkGreen,
                   AppColors.forest,
-                  Color(0xFF1FA35A),
+                  AppColors.forestBright,
                 ],
               ),
             ),
@@ -47,16 +47,17 @@ class WelcomeScreen extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const SizedBox(height: AppSpacing.xl),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.14),
+                            color: AppColors.onPrimary.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.18),
+                              color: AppColors.onPrimary.withValues(alpha: 0.18),
                             ),
                           ),
                           child: Text(
@@ -69,21 +70,21 @@ class WelcomeScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: AppSpacing.xl),
                         Container(
                           width: 96,
                           height: 96,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(28),
+                            color: AppColors.onPrimary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.22),
+                              color: AppColors.onPrimary.withValues(alpha: 0.22),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.12),
+                                color: AppColors.ink.withValues(alpha: 0.12),
                                 blurRadius: 24,
-                                offset: const Offset(0, 10),
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
@@ -93,7 +94,7 @@ class WelcomeScreen extends StatelessWidget {
                             color: AppColors.lime,
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: AppSpacing.xl),
                         Text(
                           'Chuỗi Xanh Việt',
                           textAlign: TextAlign.center,

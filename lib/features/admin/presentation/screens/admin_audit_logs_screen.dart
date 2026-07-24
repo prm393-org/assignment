@@ -5,6 +5,7 @@ import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/admin/presentation/providers/admin_providers.dart';
 
 class AdminAuditLogsScreen extends ConsumerWidget {
@@ -20,30 +21,58 @@ class AdminAuditLogsScreen extends ConsumerWidget {
         onRetry: () => ref.invalidate(auditLogsProvider),
         isEmpty: (page) => page.items.isEmpty,
         emptyMessage: 'Chưa có log',
-        builder: (page) => ListView.separated(
-          padding: AppSpacing.screen,
-          itemCount: page.items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (_, i) {
-            final log = page.items[i];
-            return ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.hairline),
-              ),
-              title: Text('${log.module} · ${log.action}'),
-              subtitle: Text(
-                '${log.actorName ?? 'system'} · ${Formatters.dateTime(log.createdAt)}\n${log.path ?? ''}',
-              ),
-              isThreeLine: true,
-              trailing: Text(
-                log.status,
-                style: TextStyle(
-                  color: log.status == 'success' ? AppColors.success : AppColors.error,
-                ),
-              ),
-            );
+        emptyIcon: Icons.history_rounded,
+        builder: (page) => RefreshIndicator(
+          color: AppColors.forest,
+          onRefresh: () async {
+            ref.invalidate(auditLogsProvider);
+            await ref.read(auditLogsProvider.future);
           },
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: AppSpacing.screen,
+            itemCount: page.items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (_, i) {
+              final log = page.items[i];
+              final ok = log.status == 'success';
+              return SurfaceCard(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${log.module} · ${log.action}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '${log.actorName ?? 'system'} · ${Formatters.dateTime(log.createdAt)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          if (log.path != null && log.path!.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              log.path!,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    StatusChip(
+                      label: log.status,
+                      tone: ok ? StatusTone.success : StatusTone.danger,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

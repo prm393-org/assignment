@@ -54,6 +54,12 @@ class OrdersScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _refresh(WidgetRef ref) async {
+    final provider = isSeller ? shopOrdersProvider : myOrdersProvider;
+    ref.invalidate(provider);
+    await ref.read(provider.future);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authNotifierProvider);
@@ -105,99 +111,109 @@ class OrdersScreen extends ConsumerWidget {
         emptyMessage: isSeller
             ? 'Chưa có đơn bán nào'
             : 'Bạn chưa có đơn hàng — ghé chợ để mua nhé',
-        builder: (page) => ListView.separated(
-          padding: AppSpacing.screen,
-          itemCount: page.items.length + 1,
-          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-          itemBuilder: (_, i) {
-            if (i == 0) {
-              return PageHeader(
-                title: isSeller ? 'Theo dõi đơn bán' : 'Lịch sử mua hàng',
-                subtitle: '${page.items.length} đơn gần đây',
-                icon: isSeller
-                    ? Icons.storefront_rounded
-                    : Icons.receipt_long_rounded,
-              );
-            }
-            final o = page.items[i - 1];
-            final path = isSeller
-                ? '/farmer/orders/${o.id}'
-                : '/consumer/orders/${o.id}';
-            final shortId = o.id.length > 8 ? o.id.substring(0, 8) : o.id;
-            final canCancel =
-                !isSeller && o.status.toLowerCase() == 'pending';
-            return SurfaceCard(
-              padding: const EdgeInsets.all(14),
-              onTap: () => context.push(path),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      IconBadge(
-                        icon: isSeller
-                            ? Icons.local_shipping_outlined
-                            : Icons.shopping_bag_outlined,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              o.shopName ?? 'Đơn #$shortId',
-                              style: Theme.of(context).textTheme.titleMedium,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              Formatters.dateTime(o.createdAt),
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
+        emptyActionLabel: isSeller ? 'Về trang nông hộ' : 'Đi chợ',
+        onEmptyAction: () => context.go(
+          isSeller ? '/farmer/home' : '/consumer/marketplace',
+        ),
+        emptyIcon: Icons.receipt_long_outlined,
+        builder: (page) => RefreshIndicator(
+          color: AppColors.forest,
+          onRefresh: () => _refresh(ref),
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: AppSpacing.screen,
+            itemCount: page.items.length + 1,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (_, i) {
+              if (i == 0) {
+                return PageHeader(
+                  title: isSeller ? 'Theo dõi đơn bán' : 'Lịch sử mua hàng',
+                  subtitle: '${page.items.length} đơn gần đây',
+                  icon: isSeller
+                      ? Icons.storefront_rounded
+                      : Icons.receipt_long_rounded,
+                );
+              }
+              final o = page.items[i - 1];
+              final path = isSeller
+                  ? '/farmer/orders/${o.id}'
+                  : '/consumer/orders/${o.id}';
+              final shortId = o.id.length > 8 ? o.id.substring(0, 8) : o.id;
+              final canCancel =
+                  !isSeller && o.status.toLowerCase() == 'pending';
+              return SurfaceCard(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                onTap: () => context.push(path),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconBadge(
+                          icon: isSeller
+                              ? Icons.local_shipping_outlined
+                              : Icons.shopping_bag_outlined,
                         ),
-                      ),
-                      StatusChip.order(o.status),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text(
-                        o.paymentMethod.toUpperCase(),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        Formatters.money(o.totalAmount),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AppColors.forest,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ],
-                  ),
-                  if (canCancel) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => _cancel(context, ref, o.id),
-                        child: const Text(
-                          'Hủy đơn',
-                          style: TextStyle(color: AppColors.error),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                o.shopName ?? 'Đơn #$shortId',
+                                style: Theme.of(context).textTheme.titleMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                Formatters.dateTime(o.createdAt),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                        StatusChip.order(o.status),
+                      ],
                     ),
+                    const SizedBox(height: AppSpacing.md),
+                    const Divider(height: 1),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Text(
+                          o.paymentMethod.toUpperCase(),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          Formatters.money(o.totalAmount),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: AppColors.forest,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ],
+                    ),
+                    if (canCancel) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => _cancel(context, ref, o.id),
+                          child: const Text(
+                            'Hủy đơn',
+                            style: TextStyle(color: AppColors.error),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

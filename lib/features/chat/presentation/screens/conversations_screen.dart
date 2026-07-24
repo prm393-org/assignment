@@ -29,100 +29,111 @@ class ConversationsScreen extends ConsumerWidget {
         value: async.asLike,
         onRetry: () => ref.invalidate(conversationsProvider),
         isEmpty: (list) => list.isEmpty,
-        emptyMessage: 'Chưa có cuộc trò chuyện',
-        builder: (list) => ListView.separated(
-          padding: AppSpacing.screen,
-          itemCount: list.length,
-          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-          itemBuilder: (_, i) {
-            final c = list[i];
-            final name = c.peerName ?? 'Người dùng';
-            final initial =
-                name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
-            return SurfaceCard(
-              padding: const EdgeInsets.all(14),
-              onTap: () => context.push('/chat/${c.id}'),
-              child: Row(
-                children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: AppColors.mint,
-                        child: Text(
-                          initial,
-                          style: const TextStyle(
-                            color: AppColors.forest,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                      if (c.unreadCount > 0)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: AppColors.forest,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Text(
-                              '${c.unreadCount}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: AppColors.onPrimary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        emptyMessage: 'Chưa có cuộc trò chuyện — mở chat từ gian hàng để hỏi nông hộ',
+        emptyActionLabel: 'Đi chợ',
+        onEmptyAction: () => context.go('/consumer/marketplace'),
+        emptyIcon: Icons.chat_bubble_outline_rounded,
+        builder: (list) => RefreshIndicator(
+          color: AppColors.forest,
+          onRefresh: () async {
+            ref.invalidate(conversationsProvider);
+            await ref.read(conversationsProvider.future);
+          },
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: AppSpacing.screen,
+            itemCount: list.length,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (_, i) {
+              final c = list[i];
+              final name = c.peerName ?? 'Người dùng';
+              final initial =
+                  name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+              return SurfaceCard(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                onTap: () => context.push('/chat/${c.id}'),
+                child: Row(
+                  children: [
+                    Stack(
                       children: [
-                        Text(
-                          name,
-                          style: Theme.of(context).textTheme.titleMedium,
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: AppColors.mint,
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              color: AppColors.forest,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          c.lastMessage?.isNotEmpty == true
-                              ? c.lastMessage!
-                              : 'Chưa có tin nhắn',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: c.unreadCount > 0
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
+                        if (c.unreadCount > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(AppSpacing.xs),
+                              decoration: const BoxDecoration(
+                                color: AppColors.forest,
+                                shape: BoxShape.circle,
                               ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          Formatters.dateTime(c.lastMessageAt),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
+                              constraints: const BoxConstraints(
+                                minWidth: 18,
+                                minHeight: 18,
+                              ),
+                              child: Text(
+                                '${c.unreadCount}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: AppColors.onPrimary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.muted,
-                  ),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            c.lastMessage?.isNotEmpty == true
+                                ? c.lastMessage!
+                                : 'Chưa có tin nhắn',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: c.unreadCount > 0
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            Formatters.dateTime(c.lastMessageAt),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.muted,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

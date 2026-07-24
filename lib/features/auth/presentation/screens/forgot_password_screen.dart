@@ -14,6 +14,7 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   bool _loading = false;
   String? _message;
@@ -25,7 +26,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  bool get _isEmailValid {
+    final email = _email.text.trim();
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+  }
+
   Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() {
       _loading = true;
       _message = null;
@@ -50,30 +57,44 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       appBar: AppBar(title: const Text('Quên mật khẩu')),
       body: Padding(
         padding: AppSpacing.screen,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Nhập email đã đăng ký để nhận hướng dẫn đặt lại mật khẩu.'),
-            const SizedBox(height: AppSpacing.xl),
-            TextField(
-              controller: _email,
-              decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            if (_message != null)
-              Text(
-                _message!,
-                style: TextStyle(
-                  color: _success ? AppColors.success : AppColors.error,
-                ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Nhập email đã đăng ký để nhận hướng dẫn đặt lại mật khẩu.',
               ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              onPressed: _loading ? null : _submit,
-              child: const Text('Gửi yêu cầu'),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.xl),
+              TextFormField(
+                controller: _email,
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  final email = (v ?? '').trim();
+                  if (email.isEmpty) return 'Vui lòng nhập email';
+                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                    return 'Email không hợp lệ';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              if (_message != null)
+                Text(
+                  _message!,
+                  style: TextStyle(
+                    color: _success ? AppColors.success : AppColors.error,
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton(
+                onPressed: _loading || !_isEmailValid ? null : _submit,
+                child: const Text('Gửi yêu cầu'),
+              ),
+            ],
+          ),
         ),
       ),
     );

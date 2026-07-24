@@ -20,6 +20,7 @@ class AddProductScreen extends ConsumerStatefulWidget {
 }
 
 class _AddProductScreenState extends ConsumerState<AddProductScreen> {
+  final _formKey = GlobalKey<FormState>();
   String? _saleUnitId;
   final _name = TextEditingController();
   final _price = TextEditingController();
@@ -35,6 +36,17 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _stock.dispose();
     _imageUrl.dispose();
     super.dispose();
+  }
+
+  bool get _isFormValid {
+    final price = double.tryParse(_price.text.trim());
+    final stock = double.tryParse(_stock.text.trim());
+    return _saleUnitId != null &&
+        _name.text.trim().isNotEmpty &&
+        price != null &&
+        price > 0 &&
+        stock != null &&
+        _stock.text.trim().isNotEmpty;
   }
 
   Future<void> _pickAndUpload() async {
@@ -59,12 +71,13 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 
   Future<void> _submit() async {
-    if (_saleUnitId == null) return;
+    if (!_formKey.currentState!.validate()) return;
+    final price = double.parse(_price.text.trim());
+    final stockQty = double.parse(_stock.text.trim());
+    final name = _name.text.trim();
+    final imageUrl =
+        _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim();
     setState(() => _loading = true);
-    final price = double.tryParse(_price.text) ?? 0;
-    final stockQty = double.tryParse(_stock.text);
-    final name = _name.text.trim().isEmpty ? null : _name.text.trim();
-    final imageUrl = _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim();
     try {
       await ref.read(shopManageRepositoryProvider).addProduct(widget.shopId, {
         'sale_unit_id': _saleUnitId,
@@ -120,65 +133,93 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ref.invalidate(availableSaleUnitsProvider(widget.shopId)),
         isEmpty: (list) => list.isEmpty,
         emptyMessage: 'Không còn đơn vị bán khả dụng',
-        builder: (list) => ListView(
-          padding: AppSpacing.screen,
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: _saleUnitId,
-              decoration: const InputDecoration(labelText: 'Đơn vị bán'),
-              items: [
-                for (final u in list)
-                  DropdownMenuItem(
-                    value: u.id,
-                    child: Text(
-                      '${u.code} · ${u.cropName ?? ''} (${u.quantity} ${u.unit})',
+        builder: (list) => Form(
+          key: _formKey,
+          child: ListView(
+            padding: AppSpacing.screen,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _saleUnitId,
+                decoration: const InputDecoration(labelText: 'Đơn vị bán'),
+                items: [
+                  for (final u in list)
+                    DropdownMenuItem(
+                      value: u.id,
+                      child: Text(
+                        '${u.code} · ${u.cropName ?? ''} (${u.quantity} ${u.unit})',
+                      ),
                     ),
-                  ),
-              ],
-              onChanged: (v) => setState(() => _saleUnitId = v),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _name,
-              decoration:
-                  const InputDecoration(labelText: 'Tên sản phẩm (tuỳ chọn)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _price,
-              decoration: const InputDecoration(labelText: 'Giá'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _stock,
-              decoration: const InputDecoration(labelText: 'Tồn kho'),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _imageUrl,
-              decoration: const InputDecoration(labelText: 'URL ảnh'),
-              readOnly: true,
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _uploading ? null : _pickAndUpload,
-              icon: _uploading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.photo_library_outlined),
-              label: Text(_uploading ? 'Đang tải...' : 'Chọn & tải ảnh'),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _loading ? null : _submit,
-              child: const Text('Thêm'),
-            ),
-          ],
+                ],
+                onChanged: (v) => setState(() => _saleUnitId = v),
+                validator: (v) =>
+                    v == null ? 'Vui lòng chọn đơn vị bán' : null,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: _name,
+                decoration: const InputDecoration(labelText: 'Tên sản phẩm'),
+                onChanged: (_) => setState(() {}),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Vui lòng nhập tên sản phẩm'
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: _price,
+                decoration: const InputDecoration(labelText: 'Giá'),
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Vui lòng nhập giá';
+                  }
+                  final price = double.tryParse(v.trim());
+                  if (price == null) return 'Giá không hợp lệ';
+                  if (price <= 0) return 'Giá phải lớn hơn 0';
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: _stock,
+                decoration: const InputDecoration(labelText: 'Tồn kho'),
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Vui lòng nhập tồn kho';
+                  }
+                  if (double.tryParse(v.trim()) == null) {
+                    return 'Tồn kho không hợp lệ';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: _imageUrl,
+                decoration: const InputDecoration(labelText: 'URL ảnh'),
+                readOnly: true,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: _uploading ? null : _pickAndUpload,
+                icon: _uploading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.photo_library_outlined),
+                label: Text(_uploading ? 'Đang tải...' : 'Chọn & tải ảnh'),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              FilledButton(
+                onPressed: _loading || !_isFormValid ? null : _submit,
+                child: const Text('Thêm'),
+              ),
+            ],
+          ),
         ),
       ),
     );

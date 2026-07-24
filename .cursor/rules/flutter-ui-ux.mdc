@@ -1,0 +1,33 @@
+---
+description: Flutter UI/UX — theme, ui_kit, async states, form & list patterns for Chuỗi Xanh Việt
+globs: lib/**/presentation/**/*.dart,lib/core/theme/**/*.dart,lib/core/widgets/**/*.dart,lib/core/constants/app_spacing.dart
+alwaysApply: false
+---
+
+# Flutter UI/UX (Chuỗi Xanh Việt)
+
+Khi tạo/sửa UI hoặc audit UX: đọc skill `.cursor/skills/flutter-ui-ux/SKILL.md`.
+
+## Tokens (bắt buộc)
+- Màu: chỉ `AppColors` / `Theme.of(context).colorScheme`. Không `Color(0x…)`, `Colors.green`.
+- Overlay trên hero xanh: `AppColors.onPrimary` (+ opacity), không `Colors.white` rải rác.
+- Spacing: `AppSpacing` (`xs`–`xxl`, `screen`). Padding màn ≥ `lg` (16). Tránh `14`/`10`/`28` lệch scale.
+- Typography: `Theme.of(context).textTheme` — không hardcode `TextStyle(fontSize: …)` tùy tiện.
+
+## Shared widgets
+- List/async: `AsyncBody` / `LoadingView` / `EmptyState` / `ErrorState` (+ `onRetry`).
+- Surface: `SurfaceCard`, `PageHeader`, `SectionHeader`, `SoftHeroBanner`, `StatusChip`, `ProductCard`.
+- Ảnh mạng: `AppNetworkImage`. Shell tab: `RoleShell`.
+- Prefer `SurfaceCard` hơn raw `Card` trên màn mới/đang sửa.
+
+## States & forms
+- Mọi màn data: loading / empty / error. Empty nên có CTA khi có action rõ (tạo farm, đi chợ…).
+- List dài: `ListView.builder` + `RefreshIndicator` khi data refetch được.
+- Form: `Form` + `validator` inline; không chỉ SnackBar khi field trống. Submit disable khi invalid/loading.
+- Guest/auth: gate write flows (checkout, tạo forum, notifications API) — browse-only cho guest.
+
+## Anti-patterns
+- Card lồng card, shadow chồng, gradient tím mặc định.
+- FAB/nút im lặng khi thiếu điều kiện — SnackBar hoặc disable + copy rõ.
+- Icon-only critical actions không `tooltip`/`Semantics`.
+- Không copy palette từ `.cursor/rules/DESIGN.md` (brand Cursor marketing).

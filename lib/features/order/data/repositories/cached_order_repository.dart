@@ -25,8 +25,8 @@ class CachedOrderRepository implements OrderRepository {
     required String shippingAddress,
     String paymentMethod = 'cod',
     String? note,
-  }) {
-    return _inner.createOrder(
+  }) async {
+    final order = await _inner.createOrder(
       shopId: shopId,
       items: items,
       shippingName: shippingName,
@@ -35,6 +35,10 @@ class CachedOrderRepository implements OrderRepository {
       paymentMethod: paymentMethod,
       note: note,
     );
+    // Drop stale list snapshots so the next read hits the API.
+    await _cache.clearMine();
+    await _cache.clearShop();
+    return order;
   }
 
   @override
@@ -96,9 +100,18 @@ class CachedOrderRepository implements OrderRepository {
   }
 
   @override
-  Future<OrderEntity> cancelOrder(String orderId) => _inner.cancelOrder(orderId);
+  Future<OrderEntity> cancelOrder(String orderId) async {
+    final order = await _inner.cancelOrder(orderId);
+    await _cache.clearMine();
+    await _cache.clearShop();
+    return order;
+  }
 
   @override
-  Future<OrderEntity> updateOrderStatus(String orderId, String status) =>
-      _inner.updateOrderStatus(orderId, status);
+  Future<OrderEntity> updateOrderStatus(String orderId, String status) async {
+    final order = await _inner.updateOrderStatus(orderId, status);
+    await _cache.clearMine();
+    await _cache.clearShop();
+    return order;
+  }
 }

@@ -8,6 +8,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:chuoi_xanh_viet/core/error/exception_mapper.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/network/auth_token_holder.dart';
+import 'package:chuoi_xanh_viet/core/network/jwt_utils.dart';
 import 'package:chuoi_xanh_viet/core/utils/json_helpers.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/repositories/auth_repository.dart';
@@ -338,10 +339,47 @@ class AuthRepositoryImpl implements AuthRepository {
     // Always restore the backend JWT. Never replace it with a Firebase
     // idToken (RS256) — the REST API only accepts HS256 tokens.
     final session = await _local.read();
-    if (session != null) {
-      authTokenHolder.accessToken = session.accessToken;
+    if (session == null) return null;
+
+    final token = session.accessToken;
+    if (token != null && token.isNotEmpty && isJwtExpired(token)) {
+      final refreshed = await refreshBackendJwt();
+      if (refreshed != null) return refreshed;
+      await clearSession();
+      return null;
     }
+
+    authTokenHolder.accessToken = session.accessToken;
     return session;
+  }
+
+  @override
+  Future<AuthSession?> refreshBackendJwt() async {
+    final firebaseAuth = _firebaseAuth;
+    final fbUser = firebaseAuth?.currentUser;
+    final email = fbUser?.email?.trim() ?? '';
+    if (fbUser == null || email.isEmpty) return null;
+
+    try {
+      // Keep Firebase session warm; backend still needs HS256 from /auth/login.
+      await fbUser.getIdToken(true);
+    } catch (_) {
+      // Continue; bridge login may still work.
+    }
+
+    try {
+      // Google-bridged accounts use a deterministic password from Firebase uid.
+      // Email/password users cannot be refreshed without the real password.
+      final body = await _remote.login(
+        email,
+        _googleBridgePassword(fbUser.uid),
+      );
+      final session = _parseSession(body);
+      await persistSession(session);
+      return session;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

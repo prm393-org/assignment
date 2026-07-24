@@ -6,6 +6,7 @@ import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/widgets/app_network_image.dart';
+import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/features/forum/domain/forum_labels.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/providers/forum_providers.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/widgets/forum_label_chip.dart';
@@ -161,7 +162,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
           backgroundColor: AppColors.canvas,
           title: const Text('Sửa bài viết'),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const LoadingView(message: 'Đang tải bài viết…'),
       );
     }
 

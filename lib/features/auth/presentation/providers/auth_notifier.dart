@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/firebase/analytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
+import 'package:chuoi_xanh_viet/core/network/auth_session_coordinator.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_role.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_user.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/repositories/auth_repository.dart';
@@ -207,6 +208,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _applySession(session);
   }
 
+  /// Used by Dio when backend JWT cannot be refreshed.
+  Future<void> forceLogoutExpired() async {
+    if (!state.isAuthenticated && state.accessToken == null) return;
+    unawaited(CrashlyticsService.breadcrumb('auth_session_expired'));
+    await _repo.clearSession();
+    state = const AuthState(
+      isBootstrapping: false,
+      errorMessage: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    );
+    await _profileCache.clear();
+    unawaited(CrashlyticsService.clearUser());
+  }
+
   Future<void> logout() async {
     unawaited(CrashlyticsService.breadcrumb('auth_logout'));
     await _repo.clearSession();
@@ -224,5 +238,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(ref.watch(authRepositoryProvider));
+  final repo = ref.watch(authRepositoryProvider);
+  final notifier = AuthNotifier(repo);
+
+  authSessionCoordinator.refresher = () async {
+    final session = await repo.refreshBackendJwt();
+    if (session == null) return null;
+    await notifier.applySession(session);
+    return session.accessToken;
+  };
+  authSessionCoordinator.onExpired = () => notifier.forceLogoutExpired();
+
+  ref.onDispose(() {
+    authSessionCoordinator.refresher = null;
+    authSessionCoordinator.onExpired = null;
+  });
+
+  return notifier;
 });

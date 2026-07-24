@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:chuoi_xanh_viet/core/error/failures.dart';
+import 'package:chuoi_xanh_viet/core/network/jwt_utils.dart';
 
 Failure mapDioException(Object error) {
   if (error is! DioException) {
@@ -15,8 +16,14 @@ Failure mapDioException(Object error) {
     case DioExceptionType.badResponse:
       final status = error.response?.statusCode ?? 0;
       final msg = _extractMessage(error.response?.data);
-      if (status == 401 || status == 403) {
-        return AuthFailure(msg ?? 'Không có quyền truy cập');
+      if (status == 401 ||
+          status == 403 ||
+          looksLikeAuthExpiredMessage(msg)) {
+        return AuthFailure(
+          looksLikeAuthExpiredMessage(msg)
+              ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+              : (msg ?? 'Không có quyền truy cập'),
+        );
       }
       if (status >= 400 && status < 500) {
         return ValidationFailure(msg ?? 'Yêu cầu không hợp lệ');

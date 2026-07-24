@@ -191,7 +191,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: const Text('Đăng ký nông hộ qua HTX'),
                 ),
                 TextButton(
-                  onPressed: () => context.go('/consumer'),
+                  onPressed: () => context.go('/consumer/marketplace'),
                   child: const Text('Tiếp tục xem chợ (khách)'),
                 ),
               ],

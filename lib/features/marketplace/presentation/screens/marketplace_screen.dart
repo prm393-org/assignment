@@ -14,6 +14,7 @@ import 'package:chuoi_xanh_viet/features/marketplace/domain/repositories/marketp
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/providers/marketplace_providers.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/widgets/market_cards.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/widgets/market_chrome.dart';
+import 'package:chuoi_xanh_viet/features/marketplace/presentation/widgets/market_filter_sheet.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key, this.initialQuery});
@@ -26,16 +27,13 @@ class MarketplaceScreen extends ConsumerStatefulWidget {
 
 class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   final _search = TextEditingController();
-  final _minPrice = TextEditingController();
-  final _maxPrice = TextEditingController();
   Timer? _debounce;
   String _debouncedSearch = '';
-  String _debouncedMin = '';
-  String _debouncedMax = '';
+  String _minPriceText = '';
+  String _maxPriceText = '';
   int _page = 1;
   String _sort = 'newest';
   bool _productsTab = true;
-  bool _showPriceFilter = false;
 
   static const _limit = 20;
 
@@ -59,8 +57,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
-    _minPrice.dispose();
-    _maxPrice.dispose();
     super.dispose();
   }
 
@@ -70,8 +66,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       if (!mounted) return;
       setState(() {
         _debouncedSearch = _search.text.trim();
-        _debouncedMin = _minPrice.text.trim();
-        _debouncedMax = _maxPrice.text.trim();
         _page = 1;
       });
     });
@@ -93,13 +87,86 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
       searchTerm: _debouncedSearch.isEmpty ? null : _debouncedSearch,
       province: region == 'Tất cả' ? null : region,
       sort: _productsTab ? _sort : null,
-      minPrice: _productsTab ? _parsePrice(_debouncedMin) : null,
-      maxPrice: _productsTab ? _parsePrice(_debouncedMax) : null,
+      minPrice: _productsTab ? _parsePrice(_minPriceText) : null,
+      maxPrice: _productsTab ? _parsePrice(_maxPriceText) : null,
     );
   }
 
   bool get _hasActivePriceFilter =>
-      _debouncedMin.isNotEmpty || _debouncedMax.isNotEmpty;
+      _minPriceText.isNotEmpty || _maxPriceText.isNotEmpty;
+
+  int _activeFilterCount(String region) {
+    var n = 0;
+    if (region != 'Tất cả') n++;
+    if (_productsTab && _sort != 'newest') n++;
+    if (_productsTab && _hasActivePriceFilter) n++;
+    return n;
+  }
+
+  Future<void> _openFilters(String region) async {
+    final result = await showMarketFilterSheet(
+      context,
+      region: region,
+      sort: _sort,
+      minPrice: _minPriceText,
+      maxPrice: _maxPriceText,
+      sortOptions: _sortOptions,
+      showSortAndPrice: _productsTab,
+    );
+    if (result == null || !mounted) return;
+    await ref.read(marketplaceRegionProvider.notifier).setRegion(result.region);
+    setState(() {
+      _sort = result.sort;
+      _minPriceText = result.minPrice;
+      _maxPriceText = result.maxPrice;
+      _page = 1;
+    });
+  }
+
+  List<MarketActiveChip> _activeChips(String region) {
+    final chips = <MarketActiveChip>[];
+    if (region != 'Tất cả') {
+      chips.add(
+        MarketActiveChip(
+          label: region,
+          onRemove: () {
+            ref.read(marketplaceRegionProvider.notifier).setRegion('Tất cả');
+            setState(() => _page = 1);
+          },
+        ),
+      );
+    }
+    if (_productsTab && _sort != 'newest') {
+      final label = _sortOptions
+          .where((o) => o.$1 == _sort)
+          .map((o) => o.$2)
+          .firstOrNull;
+      if (label != null) {
+        chips.add(
+          MarketActiveChip(
+            label: label,
+            onRemove: () => setState(() {
+              _sort = 'newest';
+              _page = 1;
+            }),
+          ),
+        );
+      }
+    }
+    if (_productsTab && _hasActivePriceFilter) {
+      chips.add(
+        MarketActiveChip(
+          label: 'Giá đã lọc',
+          onRemove: () => setState(() {
+            _minPriceText = '';
+            _maxPriceText = '';
+            _page = 1;
+          }),
+        ),
+      );
+    }
+    return chips;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -182,146 +249,49 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     _page = 1;
                   }),
                 ),
-                const SizedBox(height: 12),
-                MarketSearchField(
-                  controller: _search,
-                  onChanged: (_) {
-                    setState(() {});
-                    _scheduleDebounce();
-                  },
-                  onClear: () {
-                    _search.clear();
-                    _scheduleDebounce();
-                    setState(() {});
-                  },
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 36,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: marketplaceRegions.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) {
-                      final r = marketplaceRegions[i];
-                      return MarketPillChip(
-                        label: r,
-                        selected: region == r,
-                        onTap: () {
-                          ref
-                              .read(marketplaceRegionProvider.notifier)
-                              .setRegion(r);
-                          setState(() => _page = 1);
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: MarketSearchField(
+                        controller: _search,
+                        onChanged: (_) {
+                          setState(() {});
+                          _scheduleDebounce();
                         },
-                      );
-                    },
-                  ),
-                ),
-                if (_productsTab) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 36,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _sortOptions.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (_, i) {
-                              final opt = _sortOptions[i];
-                              return MarketPillChip(
-                                label: opt.$2,
-                                selected: _sort == opt.$1,
-                                onTap: () => setState(() {
-                                  _sort = opt.$1;
-                                  _page = 1;
-                                }),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      MarketPillChip(
-                        label: 'Giá',
-                        icon: Icons.tune_rounded,
-                        selected: _showPriceFilter || _hasActivePriceFilter,
-                        onTap: () => setState(
-                          () => _showPriceFilter = !_showPriceFilter,
-                        ),
-                      ),
-                    ],
-                  ),
-                  AnimatedCrossFade(
-                    firstChild: const SizedBox(width: double.infinity),
-                    secondChild: Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _minPrice,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: 'Từ (₫)',
-                                isDense: true,
-                                filled: true,
-                                fillColor: AppColors.surfaceElevated,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onChanged: (_) => _scheduleDebounce(),
-                            ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text('—', style: TextStyle(color: AppColors.muted)),
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: _maxPrice,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                hintText: 'Đến (₫)',
-                                isDense: true,
-                                filled: true,
-                                fillColor: AppColors.surfaceElevated,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onChanged: (_) => _scheduleDebounce(),
-                            ),
-                          ),
-                          if (_hasActivePriceFilter)
-                            IconButton(
-                              tooltip: 'Xóa lọc giá',
-                              onPressed: () {
-                                _minPrice.clear();
-                                _maxPrice.clear();
-                                _scheduleDebounce();
-                                setState(() {});
-                              },
-                              icon: const Icon(Icons.clear_rounded),
-                            ),
-                        ],
+                        onClear: () {
+                          _search.clear();
+                          _scheduleDebounce();
+                          setState(() {});
+                        },
                       ),
                     ),
-                    crossFadeState: _showPriceFilter
-                        ? CrossFadeState.showSecond
-                        : CrossFadeState.showFirst,
-                    duration: const Duration(milliseconds: 200),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.sm),
+                    MarketFilterButton(
+                      activeCount: _activeFilterCount(region),
+                      onPressed: () => _openFilters(region),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.hairline),
+          Builder(
+            builder: (_) {
+              final chips = _activeChips(region);
+              if (chips.isEmpty) {
+                return const Divider(height: 1, color: AppColors.hairline);
+              }
+              return Column(
+                children: [
+                  const SizedBox(height: AppSpacing.sm),
+                  MarketActiveFilterChips(chips: chips),
+                  const SizedBox(height: AppSpacing.sm),
+                  const Divider(height: 1, color: AppColors.hairline),
+                ],
+              );
+            },
+          ),
           Expanded(
             child: RefreshIndicator(
               color: AppColors.forest,

@@ -17,9 +17,19 @@ class OrderCache {
   Future<void> writeMine(PaginatedResult<OrderEntity> result) =>
       _writeList(_mineKey, result);
 
+  Future<void> clearMine() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_mineKey);
+  }
+
   Future<PaginatedResult<OrderEntity>?> readShop() => _readList(_shopKey);
   Future<void> writeShop(PaginatedResult<OrderEntity> result) =>
       _writeList(_shopKey, result);
+
+  Future<void> clearShop() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_shopKey);
+  }
 
   Future<OrderEntity?> readDetail(String orderId) async {
     final prefs = await SharedPreferences.getInstance();

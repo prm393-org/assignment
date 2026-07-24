@@ -74,7 +74,17 @@ class FarmsListScreen extends ConsumerWidget {
         onRetry: () => ref.invalidate(myFarmsProvider),
         isEmpty: (list) => list.isEmpty,
         emptyMessage: 'Chưa có nông trại. Tạo mới để bắt đầu.',
-        builder: (list) => ListView.separated(
+        emptyActionLabel: 'Tạo nông trại',
+        onEmptyAction: () => context.push('/farmer/farms/create'),
+        emptyIcon: Icons.agriculture_outlined,
+        builder: (list) => RefreshIndicator(
+          color: AppColors.forest,
+          onRefresh: () async {
+            ref.invalidate(myFarmsProvider);
+            await ref.read(myFarmsProvider.future);
+          },
+          child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: AppSpacing.screen,
           itemCount: list.length + 1,
           separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
@@ -90,7 +100,7 @@ class FarmsListScreen extends ConsumerWidget {
             }
             final f = list[i - 1];
             return SurfaceCard(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(AppSpacing.md),
               onTap: () => context.push('/farmer/farms/${f.id}'),
               child: Row(
                 children: [
@@ -98,7 +108,7 @@ class FarmsListScreen extends ConsumerWidget {
                     icon: Icons.grass_rounded,
                     size: 56,
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,6 +168,7 @@ class FarmsListScreen extends ConsumerWidget {
               ),
             );
           },
+        ),
         ),
       ),
     );

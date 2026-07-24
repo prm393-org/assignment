@@ -12,6 +12,8 @@ import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/fcm_topics.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
+import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/cart/presentation/providers/cart_provider.dart';
 import 'package:chuoi_xanh_viet/features/notification/presentation/providers/messaging_providers.dart';
@@ -25,6 +27,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -58,18 +61,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.dispose();
   }
 
+  bool get _isFormValid {
+    final phoneDigits = _phone.text.replaceAll(RegExp(r'\D'), '');
+    return _name.text.trim().isNotEmpty &&
+        phoneDigits.length >= 9 &&
+        _address.text.trim().isNotEmpty;
+  }
+
   Future<void> _placeOrders() async {
+    if (!_formKey.currentState!.validate()) return;
     final items = ref.read(cartProvider);
     final groups = groupCartByShop(items);
     if (groups.isEmpty) return;
-    if (_name.text.trim().isEmpty ||
-        _phone.text.trim().isEmpty ||
-        _address.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng điền đủ thông tin giao hàng')),
-      );
-      return;
-    }
     setState(() => _loading = true);
     await CrashlyticsService.breadcrumb(
       'checkout_start shops=${groups.length} payment=$_paymentMethod',
@@ -112,6 +115,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
       await CrashlyticsService.breadcrumb('checkout_success payment=$_paymentMethod');
       if (!mounted) return;
+      // IndexedStack keeps Orders tab alive — force refetch before navigating.
+      ref.invalidate(myOrdersProvider);
+      ref.invalidate(shopOrdersProvider);
       if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
         final uri = Uri.tryParse(checkoutUrl);
         if (uri != null) {
@@ -119,7 +125,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đang mở trang thanh toán')),
+          const SnackBar(
+            content: Text(
+              'Đã mở trang thanh toán bên ngoài. Bạn có thể kiểm tra đơn hàng sau khi thanh toán.',
+            ),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -146,89 +156,140 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authNotifierProvider);
+    if (!auth.isAuthenticated) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Thanh toán')),
+        body: EmptyState(
+          message: 'Đăng nhập để đặt hàng',
+          icon: Icons.lock_outline,
+          actionLabel: 'Đăng nhập',
+          onAction: () => context.push('/login'),
+        ),
+      );
+    }
+
     final items = ref.watch(cartProvider);
     final groups = groupCartByShop(items);
+    if (groups.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Thanh toán')),
+        body: EmptyState(
+          message: 'Giỏ hàng trống, chưa thể thanh toán',
+          icon: Icons.shopping_bag_outlined,
+          actionLabel: 'Đi chợ ngay',
+          onAction: () => context.go('/consumer/marketplace'),
+        ),
+      );
+    }
+
     final subtotal = items.fold<double>(0, (s, i) => s + i.lineTotal);
     final shipping = groups.length * ApiConfig.shippingFeePerShop;
     final total = subtotal + shipping;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Thanh toán')),
-      body: ListView(
-        padding: AppSpacing.screen,
-        children: [
-          Text('Giao hàng', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Họ tên người nhận'),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _phone,
-            decoration: const InputDecoration(labelText: 'Số điện thoại'),
-            keyboardType: TextInputType.phone,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _address,
-            decoration: const InputDecoration(labelText: 'Địa chỉ'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _note,
-            decoration: const InputDecoration(labelText: 'Ghi chú (tuỳ chọn)'),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            'Đơn theo gian hàng',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          for (final g in groups)
-            Card(
-              child: ListTile(
-                title: Text(g.shopName),
-                subtitle: Text('${g.items.length} sản phẩm'),
-                trailing: Text(Formatters.money(g.subtotal)),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: AppSpacing.screen,
+          children: [
+            Text('Giao hàng', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Họ tên người nhận'),
+              textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập họ tên'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _phone,
+              decoration: const InputDecoration(labelText: 'Số điện thoại'),
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              onChanged: (_) => setState(() {}),
+              validator: (v) {
+                final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                if (digits.isEmpty) return 'Vui lòng nhập số điện thoại';
+                if (digits.length < 9) {
+                  return 'Số điện thoại ít nhất 9 chữ số';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _address,
+              decoration: const InputDecoration(labelText: 'Địa chỉ'),
+              maxLines: 2,
+              onChanged: (_) => setState(() {}),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập địa chỉ'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: _note,
+              decoration: const InputDecoration(labelText: 'Ghi chú (tuỳ chọn)'),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Đơn theo gian hàng',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final g in groups) ...[
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  title: Text(g.shopName),
+                  subtitle: Text('${g.items.length} sản phẩm'),
+                  trailing: Text(Formatters.money(g.subtotal)),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              'Phương thức thanh toán',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            RadioGroup<String>(
+              groupValue: _paymentMethod,
+              onChanged: (v) => setState(() => _paymentMethod = v ?? 'cod'),
+              child: Column(
+                children: [
+                  RadioListTile<String>(
+                    value: 'cod',
+                    title: const Text('Thanh toán khi nhận hàng (COD)'),
+                  ),
+                  RadioListTile<String>(
+                    value: 'payos',
+                    title: const Text('PayOS'),
+                  ),
+                  RadioListTile<String>(
+                    value: 'vnpay',
+                    title: const Text('VNPay'),
+                  ),
+                ],
               ),
             ),
-          const SizedBox(height: AppSpacing.xl),
-          Text(
-            'Phương thức thanh toán',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          RadioGroup<String>(
-            groupValue: _paymentMethod,
-            onChanged: (v) => setState(() => _paymentMethod = v ?? 'cod'),
-            child: Column(
-              children: [
-                RadioListTile<String>(
-                  value: 'cod',
-                  title: const Text('Thanh toán khi nhận hàng (COD)'),
-                ),
-                RadioListTile<String>(
-                  value: 'payos',
-                  title: const Text('PayOS'),
-                ),
-                RadioListTile<String>(
-                  value: 'vnpay',
-                  title: const Text('VNPay'),
-                ),
-              ],
+            const SizedBox(height: AppSpacing.md),
+            _row('Tạm tính', Formatters.money(subtotal)),
+            _row('Phí ship (${groups.length} shop)', Formatters.money(shipping)),
+            _row('Tổng cộng', Formatters.money(total), bold: true),
+            const SizedBox(height: AppSpacing.xl),
+            FilledButton(
+              onPressed:
+                  _loading || !_isFormValid ? null : _placeOrders,
+              child: Text(_loading ? 'Đang đặt...' : 'Xác nhận đặt hàng'),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _row('Tạm tính', Formatters.money(subtotal)),
-          _row('Phí ship (${groups.length} shop)', Formatters.money(shipping)),
-          _row('Tổng cộng', Formatters.money(total), bold: true),
-          const SizedBox(height: AppSpacing.xl),
-          FilledButton(
-            onPressed: _loading || groups.isEmpty ? null : _placeOrders,
-            child: Text(_loading ? 'Đang đặt...' : 'Xác nhận đặt hàng'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
