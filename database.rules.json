@@ -8,6 +8,12 @@
         ".write": "auth != null && auth.uid == $uid"
       }
     },
+    "presence_lookup": {
+      "$backendUserId": {
+        ".read": "auth != null",
+        ".write": "auth != null && newData.child('firebaseUid').val() == auth.uid"
+      }
+    },
     "chat_messages": {
       "$conversationId": {
         ".read": "auth != null",

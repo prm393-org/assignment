@@ -10,6 +10,7 @@ import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/app_network_image.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
 import 'package:chuoi_xanh_viet/features/auth/domain/entities/auth_role.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/cart/presentation/providers/cart_provider.dart';
@@ -188,6 +189,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         title: const Text('Chi tiết sản phẩm'),
         backgroundColor: AppColors.forest,
         foregroundColor: AppColors.onPrimary,
+        actions: const [ConsumerHeaderActions()],
       ),
       body: AsyncBody(
         value: async.asLike,

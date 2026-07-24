@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -65,6 +67,33 @@ class AuthLocalDataSource {
   final FlutterSecureStorage _storage;
   static const _tokenKey = 'access_token';
   static const _userKey = 'auth_user';
+  static const _shadowEmailKey = 'firebase_shadow_email';
+  static const _shadowPasswordKey = 'firebase_shadow_password';
+
+  Future<void> saveShadowCredentials({
+    required String email,
+    required String password,
+  }) async {
+    await _storage.write(key: _shadowEmailKey, value: email.trim());
+    await _storage.write(key: _shadowPasswordKey, value: password);
+  }
+
+  Future<({String email, String password})?> readShadowCredentials() async {
+    final email = await _storage.read(key: _shadowEmailKey);
+    final password = await _storage.read(key: _shadowPasswordKey);
+    if (email == null ||
+        email.isEmpty ||
+        password == null ||
+        password.isEmpty) {
+      return null;
+    }
+    return (email: email, password: password);
+  }
+
+  Future<void> clearShadowCredentials() async {
+    await _storage.delete(key: _shadowEmailKey);
+    await _storage.delete(key: _shadowPasswordKey);
+  }
 
   Future<void> save(AuthSession session) async {
     if (session.accessToken == null || session.user == null) {
@@ -89,6 +118,7 @@ class AuthLocalDataSource {
   Future<void> clear() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
+    await clearShadowCredentials();
   }
 }
 
@@ -117,7 +147,12 @@ class AuthRepositoryImpl implements AuthRepository {
       final body = await _remote.login(email, password);
       final session = _parseSession(body);
       await persistSession(session);
-      await _ensureFirebaseShadowAccount(email: email, password: password);
+      await _local.saveShadowCredentials(email: email, password: password);
+      await _ensureFirebaseShadowAccount(
+        backendUserId: session.user!.id,
+        legacyEmail: email,
+        legacyPassword: password,
+      );
       return session;
     } catch (e) {
       if (e is Failure) rethrow;
@@ -159,6 +194,7 @@ class AuthRepositoryImpl implements AuthRepository {
         avatarUrl: firebaseUser.photoURL,
       );
       await persistSession(session);
+      await _local.clearShadowCredentials();
       return session;
     } on PlatformException catch (e) {
       if (e.code == GoogleSignIn.kSignInCanceledError) return null;
@@ -276,7 +312,12 @@ class AuthRepositoryImpl implements AuthRepository {
       });
       final session = _parseSession(body);
       await persistSession(session);
-      await _ensureFirebaseShadowAccount(email: email, password: password);
+      await _local.saveShadowCredentials(email: email, password: password);
+      await _ensureFirebaseShadowAccount(
+        backendUserId: session.user!.id,
+        legacyEmail: email,
+        legacyPassword: password,
+      );
       return session;
     } catch (e) {
       if (e is Failure) rethrow;
@@ -350,7 +391,75 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     authTokenHolder.accessToken = session.accessToken;
+    await ensureFirebaseAuthHydrated();
     return session;
+  }
+
+  @override
+  Future<void> ensureFirebaseAuthHydrated() async {
+    final firebaseAuth = _firebaseAuth;
+    if (firebaseAuth == null) return;
+    if (firebaseAuth.currentUser != null) return;
+
+    final session = await _local.read();
+    final backendUserId = session?.user?.id;
+    final creds = await _local.readShadowCredentials();
+
+    // Email/password session — prefer shadow account, not Google silent.
+    if (creds != null && backendUserId != null && backendUserId.isNotEmpty) {
+      await _ensureFirebaseShadowAccount(
+        backendUserId: backendUserId,
+        legacyEmail: creds.email,
+        legacyPassword: creds.password,
+      );
+      if (firebaseAuth.currentUser != null) {
+        if (kDebugMode) {
+          debugPrint(
+            'Firebase Auth hydrated via email shadow: '
+            '${firebaseAuth.currentUser?.uid}',
+          );
+        }
+        return;
+      }
+    } else if (backendUserId != null && backendUserId.isNotEmpty) {
+      await _ensureFirebaseShadowAccount(backendUserId: backendUserId);
+      if (firebaseAuth.currentUser != null) return;
+    }
+
+    try {
+      final googleUser = await _googleSignIn.signInSilently();
+      if (googleUser != null) {
+        final googleAuth = await googleUser.authentication;
+        final credential = firebase_auth.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        await firebaseAuth.signInWithCredential(credential);
+        if (kDebugMode) {
+          debugPrint('Firebase Auth hydrated via Google silent sign-in');
+        }
+        return;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Google silent sign-in failed: $e');
+    }
+
+    try {
+      await firebaseAuth
+          .authStateChanges()
+          .firstWhere((user) => user != null)
+          .timeout(const Duration(seconds: 2));
+      if (kDebugMode) {
+        debugPrint('Firebase Auth hydrated from persisted session');
+      }
+    } catch (_) {
+      if (kDebugMode) {
+        debugPrint(
+          'Firebase Auth still null — RTDB/Firestore cần đăng xuất '
+          'rồi đăng nhập lại (Email/Password phải bật trên Firebase Console).',
+        );
+      }
+    }
   }
 
   @override
@@ -400,41 +509,116 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  /// Backend email/password logins never touch Firebase Auth, so
-  /// `FirebaseAuth.instance.currentUser` stays null for them and Firestore
-  /// security rules (keyed on `request.auth.uid`) can't recognize them.
-  /// This mirrors every successful backend login/register into a Firebase
-  /// Auth account with the same email/password, giving these users a real,
-  /// stable uid too. Never throws — Firestore sync is best-effort and must
-  /// not block the real REST login/register.
+  /// Stable Firebase password for email/password backend users (RTDB rules
+  /// need Firebase Auth — separate from the user's backend password).
+  static String _emailBridgePassword(String backendUserId) =>
+      'Em_${backendUserId}_CxV2026!';
+
+  /// Synthetic Firebase email — avoids clashing with Google/real-email accounts.
+  static String _shadowFirebaseEmail(String backendUserId) =>
+      'shadow+$backendUserId@chuoi-xanh.shadow';
+
+  /// Mirrors backend email/password login into Firebase Auth for RTDB/Firestore.
+  /// Never throws — must not block REST login/register.
   Future<void> _ensureFirebaseShadowAccount({
-    required String email,
-    required String password,
+    required String backendUserId,
+    String? legacyEmail,
+    String? legacyPassword,
   }) async {
     final firebaseAuth = _firebaseAuth;
-    if (firebaseAuth == null) return;
+    if (firebaseAuth == null || backendUserId.isEmpty) return;
+
+    // Drop any stale Google session so email-shadow sign-in is not blocked.
     try {
-      await firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        try {
-          await firebaseAuth.createUserWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-        } catch (_) {
-          // Shadow account creation failed; Firestore-backed features for
-          // this user simply stay unsynced until the next successful login.
+      await _googleSignIn.signOut();
+      await firebaseAuth.signOut();
+    } catch (_) {}
+
+    final shadowEmail = _shadowFirebaseEmail(backendUserId);
+    final bridgePassword = _emailBridgePassword(backendUserId);
+
+    Future<bool> trySignIn(String email, String password) async {
+      try {
+        await firebaseAuth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        return firebaseAuth.currentUser != null;
+      } on firebase_auth.FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') return false;
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          return false;
         }
+        rethrow;
       }
-      // Other codes (wrong-password/invalid-credential) mean the shadow
-      // account's password drifted from the backend's — leave it stale
-      // rather than fail the real login.
-    } catch (_) {
-      // Best-effort; never block the real REST login/register.
+    }
+
+    Future<bool> tryCreate(String email, String password) async {
+      try {
+        await firebaseAuth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        return firebaseAuth.currentUser != null;
+      } on firebase_auth.FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') return false;
+        if (kDebugMode) {
+          debugPrint('Firebase shadow create failed: ${e.code} ${e.message}');
+        }
+        return false;
+      }
+    }
+
+    // Primary: synthetic email + bridge password (never conflicts with Google).
+    if (await trySignIn(shadowEmail, bridgePassword)) {
+      if (kDebugMode) {
+        debugPrint(
+          'Firebase shadow ok: ${firebaseAuth.currentUser?.uid} ($shadowEmail)',
+        );
+      }
+      return;
+    }
+    if (await tryCreate(shadowEmail, bridgePassword)) {
+      if (kDebugMode) {
+        debugPrint(
+          'Firebase shadow created: ${firebaseAuth.currentUser?.uid} ($shadowEmail)',
+        );
+      }
+      return;
+    }
+    if (await trySignIn(shadowEmail, bridgePassword)) {
+      return;
+    }
+
+    // Legacy fallback: real email (older builds / manual Firebase users).
+    final realEmail = legacyEmail?.trim();
+    final legacy = legacyPassword?.trim();
+    if (realEmail != null &&
+        realEmail.isNotEmpty &&
+        legacy != null &&
+        legacy.isNotEmpty) {
+      if (await trySignIn(realEmail, bridgePassword)) {
+        if (kDebugMode) debugPrint('Firebase shadow ok (legacy bridge email)');
+        return;
+      }
+      if (await tryCreate(realEmail, bridgePassword)) {
+        if (kDebugMode) debugPrint('Firebase shadow created (legacy email)');
+        return;
+      }
+      if (await trySignIn(realEmail, legacy)) {
+        if (kDebugMode) debugPrint('Firebase shadow ok (legacy user password)');
+        try {
+          await firebaseAuth.currentUser?.updatePassword(bridgePassword);
+        } catch (_) {}
+        return;
+      }
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        'Firebase shadow failed for backendUserId=$backendUserId. '
+        'Kiểm tra Email/Password đã bật trên Firebase Console.',
+      );
     }
   }
 

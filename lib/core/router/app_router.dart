@@ -173,6 +173,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => RoleShell(
           navigationShell: shell,
+          centerAction: const ShellCenterAction(
+            label: 'Quét QR',
+            icon: Icons.qr_code_scanner_rounded,
+            path: '/consumer/trace/scan',
+          ),
           destinations: const [
             ShellDestination(
               path: '/consumer/home',
@@ -191,12 +196,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               label: 'Diễn đàn',
               icon: Icons.forum_outlined,
               selectedIcon: Icons.forum,
-            ),
-            ShellDestination(
-              path: '/consumer/orders',
-              label: 'Đơn',
-              icon: Icons.receipt_long_outlined,
-              selectedIcon: Icons.receipt_long,
             ),
             ShellDestination(
               path: '/consumer/me',
@@ -229,12 +228,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-              path: '/consumer/orders',
-              builder: (_, _) => const OrdersScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
               path: '/consumer/me',
               builder: (_, _) => const ProfileScreen(
                 roleLinks: [
@@ -242,6 +235,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     label: 'Sửa hồ sơ',
                     path: '/profile/edit',
                     icon: Icons.edit_outlined,
+                  ),
+                  ProfileLink(
+                    label: 'Đơn hàng của tôi',
+                    path: '/consumer/orders',
+                    icon: Icons.receipt_long_outlined,
                   ),
                   ProfileLink(
                     label: 'Giỏ hàng',
@@ -270,6 +268,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ShopDetailScreen(shopId: state.pathParameters['id']!),
       ),
       GoRoute(path: '/consumer/cart', builder: (_, _) => const CartScreen()),
+      GoRoute(
+        path: '/consumer/orders',
+        builder: (_, _) => const OrdersScreen(),
+      ),
       GoRoute(
         path: '/consumer/checkout',
         builder: (_, _) => const CheckoutScreen(),

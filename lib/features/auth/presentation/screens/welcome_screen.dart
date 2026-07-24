@@ -57,7 +57,9 @@ class WelcomeScreen extends StatelessWidget {
                             color: AppColors.onPrimary.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: AppColors.onPrimary.withValues(alpha: 0.18),
+                              color: AppColors.onPrimary.withValues(
+                                alpha: 0.18,
+                              ),
                             ),
                           ),
                           child: Text(
@@ -78,7 +80,9 @@ class WelcomeScreen extends StatelessWidget {
                             color: AppColors.onPrimary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: AppColors.onPrimary.withValues(alpha: 0.22),
+                              color: AppColors.onPrimary.withValues(
+                                alpha: 0.22,
+                              ),
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -169,11 +173,7 @@ class WelcomeScreen extends StatelessWidget {
 }
 
 class _Blob extends StatelessWidget {
-  const _Blob({
-    required this.size,
-    required this.opacity,
-    this.lime = false,
-  });
+  const _Blob({required this.size, required this.opacity, this.lime = false});
 
   final double size;
   final double opacity;

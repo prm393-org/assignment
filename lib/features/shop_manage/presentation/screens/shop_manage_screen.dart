@@ -6,6 +6,7 @@ import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
 import 'package:chuoi_xanh_viet/features/shop_manage/presentation/providers/shop_manage_providers.dart';
@@ -17,14 +18,9 @@ class ShopManageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myShopsProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Bán hàng', style: Theme.of(context).textTheme.bodySmall),
-            Text('Gian hàng', style: Theme.of(context).textTheme.titleLarge),
-          ],
-        ),
+      appBar: const FarmerTabAppBar(
+        subtitle: 'Bán hàng',
+        title: 'Gian hàng',
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createShop(context, ref),

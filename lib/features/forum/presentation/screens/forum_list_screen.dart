@@ -7,6 +7,8 @@ import 'package:chuoi_xanh_viet/core/constants/app_spacing.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
+import 'package:chuoi_xanh_viet/core/widgets/notched_bottom_nav_bar.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/providers/forum_providers.dart';
 import 'package:chuoi_xanh_viet/features/forum/presentation/widgets/forum_label_chip.dart';
@@ -50,29 +52,25 @@ class _ForumListScreenState extends ConsumerState<ForumListScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(forumPostsProvider(_query));
-    final textTheme = Theme.of(context).textTheme;
     final isAuthenticated = ref.watch(authNotifierProvider).isAuthenticated;
+    final isConsumerShell = widget.basePath == '/consumer';
+    final shellBottomInset =
+        isConsumerShell ? consumerShellBottomInset(context) : 0.0;
 
     return Scaffold(
       backgroundColor: AppColors.canvasSoft,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        surfaceTintColor: Colors.transparent,
-        titleSpacing: AppSpacing.lg,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Cộng đồng',
-              style: textTheme.bodySmall?.copyWith(color: AppColors.muted),
+      appBar: widget.basePath == '/farmer'
+          ? const FarmerTabAppBar(
+              subtitle: 'Cộng đồng',
+              title: 'Diễn đàn',
+            )
+          : const ConsumerTabAppBar(
+              subtitle: 'Cộng đồng',
+              title: 'Diễn đàn',
             ),
-            Text(
-              'Diễn đàn',
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      ),
+      floatingActionButtonLocation: isConsumerShell
+          ? const FabAboveShellNavLocation()
+          : FloatingActionButtonLocation.endFloat,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           if (!isAuthenticated) {
@@ -157,7 +155,12 @@ class _ForumListScreenState extends ConsumerState<ForumListScreen> {
                 },
                 child: ListView.separated(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    isConsumerShell ? shellBottomInset + 72 : 88,
+                  ),
                   itemCount: page.items.length + 1,
                   separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.md),

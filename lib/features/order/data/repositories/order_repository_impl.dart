@@ -35,6 +35,11 @@ class OrderRepositoryImpl implements OrderRepository {
       });
       final data = asMap(unwrapData(res.data));
       final order = OrderEntity.fromJson(data);
+      final status = order.status.isNotEmpty ? order.status : 'pending';
+      await OrderLiveSync.publishStatus(
+        orderId: order.id,
+        status: status,
+      );
       // Push "new order" to the shop's owner (subscribed to shop_<id>).
       unawaited(PushSender.sendToTopic(
         topic: FcmTopics.shop(shopId),

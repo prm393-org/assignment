@@ -14,6 +14,7 @@ import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifi
 import 'package:chuoi_xanh_viet/features/chat/data/chat_rtdb.dart';
 import 'package:chuoi_xanh_viet/features/chat/domain/entities/chat_message.dart';
 import 'package:chuoi_xanh_viet/features/chat/presentation/providers/chat_providers.dart';
+import 'package:chuoi_xanh_viet/features/chat/presentation/widgets/peer_online_indicator.dart';
 
 class ChatThreadScreen extends ConsumerStatefulWidget {
   const ChatThreadScreen({super.key, required this.conversationId});
@@ -140,12 +141,25 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         ?.where((c) => c.id == widget.conversationId)
         .map((c) => c.peerName)
         .firstOrNull;
+    final peerUserId = ref
+        .watch(conversationsProvider)
+        .valueOrNull
+        ?.where((c) => c.id == widget.conversationId)
+        .map((c) => c.peerUserId)
+        .firstOrNull;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          peerName != null && peerName.trim().isNotEmpty
-              ? peerName
-              : 'Trò chuyện',
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              peerName != null && peerName.trim().isNotEmpty
+                  ? peerName
+                  : 'Trò chuyện',
+            ),
+            if (peerUserId != null && peerUserId.isNotEmpty)
+              PeerOnlineSubtitle(backendUserId: peerUserId),
+          ],
         ),
       ),
       body: Column(

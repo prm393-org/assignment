@@ -6,9 +6,9 @@ import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
-import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/providers/order_providers.dart';
 
 class FarmerHomeScreen extends ConsumerWidget {
@@ -18,51 +18,10 @@ class FarmerHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final farms = ref.watch(myFarmsProvider);
     final earnings = ref.watch(shopEarningsProvider);
-    final unreadNotif = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
-
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Bảng điều khiển', style: Theme.of(context).textTheme.bodySmall),
-            Text('Nông hộ', style: Theme.of(context).textTheme.titleLarge),
-          ],
-        ),
-        actions: [
-          Stack(
-            children: [
-              IconButton.filledTonal(
-                onPressed: () => context.push('/farmer/notifications'),
-                icon: const Icon(Icons.notifications_none_rounded),
-              ),
-              if (unreadNotif > 0)
-                Positioned(
-                  right: AppSpacing.sm,
-                  top: AppSpacing.sm,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.xs),
-                    decoration: const BoxDecoration(
-                      color: AppColors.forest,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints:
-                        const BoxConstraints(minWidth: 18, minHeight: 18),
-                    child: Text(
-                      unreadNotif > 99 ? '99+' : '$unreadNotif',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
+      appBar: const FarmerTabAppBar(
+        subtitle: 'Bảng điều khiển',
+        title: 'Nông hộ',
       ),
       body: RefreshIndicator(
         color: AppColors.forest,

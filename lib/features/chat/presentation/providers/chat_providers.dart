@@ -21,6 +21,18 @@ final conversationsProvider =
   return list.map((c) => c.resolvedFor(meId)).toList();
 });
 
+/// Total unread messages across conversations (header badge).
+final unreadChatCountProvider = Provider<int>((ref) {
+  if (!ref.watch(authNotifierProvider).isAuthenticated) return 0;
+  final convs = ref.watch(conversationsProvider).valueOrNull;
+  if (convs == null) return 0;
+  var total = 0;
+  for (final c in convs) {
+    total += c.unreadCount;
+  }
+  return total;
+});
+
 final chatMessagesProvider =
     FutureProvider.autoDispose.family<List<ChatMessage>, String>((ref, id) {
   return ref.watch(chatRepositoryProvider).listMessages(id);
@@ -114,4 +126,11 @@ final peerOnlineProvider =
     StreamProvider.autoDispose.family<bool, String>((ref, firebaseUid) {
   if (firebaseUid.isEmpty) return Stream<bool>.value(false);
   return ref.watch(presenceServiceProvider).watchOnline(firebaseUid);
+});
+
+/// Peer presence keyed by backend `AuthUser.id` (used in chat UI).
+final peerOnlineByBackendIdProvider =
+    StreamProvider.autoDispose.family<bool, String>((ref, backendUserId) {
+  if (backendUserId.isEmpty) return Stream<bool>.value(false);
+  return ref.watch(presenceServiceProvider).watchOnlineByBackendId(backendUserId);
 });
