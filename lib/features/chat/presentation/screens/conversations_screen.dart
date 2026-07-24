@@ -8,6 +8,7 @@ import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/chat/presentation/providers/chat_providers.dart';
+import 'package:chuoi_xanh_viet/features/chat/presentation/widgets/peer_online_indicator.dart';
 
 class ConversationsScreen extends ConsumerWidget {
   const ConversationsScreen({super.key});
@@ -55,6 +56,7 @@ class ConversationsScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     Stack(
+                      clipBehavior: Clip.none,
                       children: [
                         CircleAvatar(
                           radius: 26,
@@ -68,6 +70,8 @@ class ConversationsScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (c.peerUserId != null && c.peerUserId!.isNotEmpty)
+                          PeerOnlineDot(backendUserId: c.peerUserId!),
                         if (c.unreadCount > 0)
                           Positioned(
                             right: 0,
@@ -100,9 +104,18 @@ class ConversationsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            name,
-                            style: Theme.of(context).textTheme.titleMedium,
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (c.peerUserId != null && c.peerUserId!.isNotEmpty)
+                                PeerOnlineLabel(backendUserId: c.peerUserId!),
+                            ],
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(

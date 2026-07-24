@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:chuoi_xanh_viet/app.dart';
 import 'package:chuoi_xanh_viet/core/firebase/crashlytics_service.dart';
 import 'package:chuoi_xanh_viet/core/firebase/messaging_service.dart';
@@ -26,9 +27,10 @@ Future<void> main() async {
 
   try {
     CrashlyticsService.bindFlutterFatals();
+    final packageInfo = await PackageInfo.fromPlatform();
     await CrashlyticsService.bootstrap(
-      appVersion: '1.0.0',
-      buildNumber: '1',
+      appVersion: packageInfo.version,
+      buildNumber: packageInfo.buildNumber,
     );
   } catch (e) {
     debugPrint('Crashlytics bootstrap failed: $e');

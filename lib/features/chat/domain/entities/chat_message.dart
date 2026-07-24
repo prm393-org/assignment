@@ -43,7 +43,7 @@ class ChatMessage extends Equatable {
     final stringSender = json['sender'] is String ? '${json['sender']}' : '';
 
     return ChatMessage(
-      id: readString(json, ['id']),
+      id: readString(json, ['id', '_id']),
       conversationId: readString(json, [
         'conversationId',
         'conversation_id',

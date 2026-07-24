@@ -84,6 +84,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_start'));
     final session = await _repo.restoreSession();
     if (session != null) {
+      await _repo.ensureFirebaseAuthHydrated();
       await _applySession(session);
       unawaited(CrashlyticsService.breadcrumb('auth_bootstrap_restored'));
     } else {

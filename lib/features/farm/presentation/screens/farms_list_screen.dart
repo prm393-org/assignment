@@ -6,6 +6,7 @@ import 'package:chuoi_xanh_viet/core/error/failures.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/farm/domain/entities/farm.dart';
 import 'package:chuoi_xanh_viet/features/farm/presentation/providers/farm_providers.dart';
@@ -55,14 +56,9 @@ class FarmsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myFarmsProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Quản lý', style: Theme.of(context).textTheme.bodySmall),
-            Text('Nông trại', style: Theme.of(context).textTheme.titleLarge),
-          ],
-        ),
+      appBar: const FarmerTabAppBar(
+        subtitle: 'Quản lý',
+        title: 'Nông trại',
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/farmer/farms/create'),

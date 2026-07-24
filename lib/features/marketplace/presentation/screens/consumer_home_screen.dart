@@ -6,12 +6,10 @@ import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/widgets/app_network_image.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
-import 'package:chuoi_xanh_viet/features/cart/presentation/providers/cart_provider.dart';
-import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/providers/marketplace_providers.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/widgets/market_filter_sheet.dart';
-import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 
 class ConsumerHomeScreen extends ConsumerStatefulWidget {
   const ConsumerHomeScreen({super.key});
@@ -33,110 +31,13 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
   Widget build(BuildContext context) {
     final products = ref.watch(highlightProductsProvider);
     final shops = ref.watch(highlightShopsProvider);
-    final cartCount = ref.watch(cartCountProvider);
     final region = ref.watch(marketplaceRegionProvider);
-    final isAuthenticated = ref.watch(authNotifierProvider).isAuthenticated;
-    final unreadNotif = isAuthenticated
-        ? (ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0)
-        : 0;
 
     return Scaffold(
       backgroundColor: AppColors.canvasSoft,
-      appBar: AppBar(
-        backgroundColor: AppColors.canvas,
-        surfaceTintColor: Colors.transparent,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Xin chào',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.muted,
-                  ),
-            ),
-            Text(
-              'Chuỗi Xanh Việt',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          _roundAction(
-            icon: Icons.qr_code_scanner_rounded,
-            onTap: () => context.push('/consumer/trace/scan'),
-          ),
-          Stack(
-            children: [
-              _roundAction(
-                icon: Icons.notifications_none_rounded,
-                onTap: () {
-                  if (!isAuthenticated) {
-                    context.push('/login');
-                    return;
-                  }
-                  context.push('/consumer/notifications');
-                },
-              ),
-              if (unreadNotif > 0)
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.forest,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints:
-                        const BoxConstraints(minWidth: 18, minHeight: 18),
-                    child: Text(
-                      unreadNotif > 99 ? '99+' : '$unreadNotif',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          Stack(
-            children: [
-              _roundAction(
-                icon: Icons.shopping_bag_outlined,
-                onTap: () => context.push('/consumer/cart'),
-              ),
-              if (cartCount > 0)
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppColors.lime,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints:
-                        const BoxConstraints(minWidth: 18, minHeight: 18),
-                    child: Text(
-                      '$cartCount',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.darkGreen,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 4),
-        ],
+      appBar: const ConsumerTabAppBar(
+        subtitle: 'Xin chào',
+        title: 'Chuỗi Xanh Việt',
       ),
       body: RefreshIndicator(
         color: AppColors.forest,
@@ -422,23 +323,6 @@ class _ConsumerHomeScreenState extends ConsumerState<ConsumerHomeScreen> {
             const SizedBox(height: AppSpacing.xl),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _roundAction({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: IconButton.filledTonal(
-        style: IconButton.styleFrom(
-          backgroundColor: AppColors.surfaceElevated,
-          foregroundColor: AppColors.ink,
-        ),
-        onPressed: onTap,
-        icon: Icon(icon),
       ),
     );
   }

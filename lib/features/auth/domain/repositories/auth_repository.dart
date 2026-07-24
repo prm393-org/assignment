@@ -46,6 +46,10 @@ abstract class AuthRepository {
 
   Future<AuthSession?> restoreSession();
 
+  /// Restores Firebase Auth after a cold start (Google silent sign-in /
+  /// persisted email shadow session). RTDB/Firestore need `currentUser`.
+  Future<void> ensureFirebaseAuthHydrated();
+
   /// Re-issues backend HS256 JWT when Firebase session is still alive
   /// (Google bridge). Returns null if refresh is not possible.
   Future<AuthSession?> refreshBackendJwt();

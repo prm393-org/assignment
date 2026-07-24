@@ -7,6 +7,7 @@ import 'package:chuoi_xanh_viet/core/theme/app_colors.dart';
 import 'package:chuoi_xanh_viet/core/utils/async_ext.dart';
 import 'package:chuoi_xanh_viet/core/utils/formatters.dart';
 import 'package:chuoi_xanh_viet/core/widgets/async_states.dart';
+import 'package:chuoi_xanh_viet/core/widgets/consumer_header_actions.dart';
 import 'package:chuoi_xanh_viet/core/widgets/ui_kit.dart';
 import 'package:chuoi_xanh_viet/features/auth/presentation/providers/auth_notifier.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/providers/order_providers.dart';
@@ -65,17 +66,9 @@ class OrdersScreen extends ConsumerWidget {
     final auth = ref.watch(authNotifierProvider);
     if (!isSeller && !auth.isAuthenticated) {
       return Scaffold(
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Mua hàng', style: Theme.of(context).textTheme.bodySmall),
-              Text(
-                'Đơn hàng của tôi',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
+        appBar: const ConsumerTabAppBar(
+          subtitle: 'Mua hàng',
+          title: 'Đơn hàng của tôi',
         ),
         body: EmptyState(
           message: 'Đăng nhập để xem đơn hàng của bạn',
@@ -88,21 +81,26 @@ class OrdersScreen extends ConsumerWidget {
 
     final async = ref.watch(isSeller ? shopOrdersProvider : myOrdersProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isSeller ? 'Bán hàng' : 'Mua hàng',
-              style: Theme.of(context).textTheme.bodySmall,
+      appBar: isSeller
+          ? AppBar(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bán hàng',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  Text(
+                    'Đơn bán',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            )
+          : const ConsumerTabAppBar(
+              subtitle: 'Mua hàng',
+              title: 'Đơn hàng của tôi',
             ),
-            Text(
-              isSeller ? 'Đơn bán' : 'Đơn hàng của tôi',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ],
-        ),
-      ),
       body: AsyncBody(
         value: async.asLike,
         onRetry: () =>
@@ -172,7 +170,7 @@ class OrdersScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        StatusChip.order(o.status),
+                        _OrderLiveStatusChip(orderId: o.id, fallbackStatus: o.status),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -216,6 +214,31 @@ class OrdersScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _OrderLiveStatusChip extends ConsumerWidget {
+  const _OrderLiveStatusChip({
+    required this.orderId,
+    required this.fallbackStatus,
+  });
+
+  final String orderId;
+  final String fallbackStatus;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(liveOrderStatusProvider(orderId), (prev, next) {
+      final status = next.valueOrNull;
+      if (status == null || status.isEmpty) return;
+      if (prev?.valueOrNull == status) return;
+      ref.invalidate(myOrdersProvider);
+      ref.invalidate(shopOrdersProvider);
+    });
+    final live = ref.watch(liveOrderStatusProvider(orderId)).valueOrNull;
+    return StatusChip.order(
+      live != null && live.isNotEmpty ? live : fallbackStatus,
     );
   }
 }
