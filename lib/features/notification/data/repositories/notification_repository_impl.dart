@@ -51,7 +51,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
   Future<void> markRead(String id) async {
     try {
       await FirestoreRefs.notificationsRef().doc(id).update({'read': true});
-      await _syncUnreadCount();
+      await syncUnreadCount();
     } catch (e) {
       throw mapFirestoreException(e);
     }
@@ -80,7 +80,8 @@ class NotificationRepositoryImpl implements NotificationRepository {
     }
   }
 
-  Future<void> _syncUnreadCount() async {
+  @override
+  Future<void> syncUnreadCount() async {
     final uid = _currentUid();
     if (uid == null) return;
     final snapshot = await FirestoreRefs.notificationsRef()

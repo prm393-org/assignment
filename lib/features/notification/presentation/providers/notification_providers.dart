@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:chuoi_xanh_viet/core/firebase/current_uid_provider.dart';
 import 'package:chuoi_xanh_viet/core/firebase/notification_counter_sync.dart';
@@ -15,6 +17,17 @@ final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
 final notificationsProvider =
     StreamProvider.autoDispose<PaginatedResult<AppNotification>>((ref) {
   return ref.watch(notificationRepositoryProvider).watchInbox();
+});
+
+/// The RTDB badge counter only moves when `notifyUser` increments it, so a
+/// notification written while the counter was unreachable leaves the badge
+/// permanently stale. Recompute it from the inbox once the uid is known.
+/// Watched app-wide from `app.dart`.
+final notificationCounterBindingProvider = Provider<void>((ref) {
+  ref.listen<String?>(currentFirebaseUidProvider, (prev, next) {
+    if (next == null || next.isEmpty) return;
+    unawaited(ref.read(notificationRepositoryProvider).syncUnreadCount());
+  }, fireImmediately: true);
 });
 
 /// Live unread badge from Firebase RTDB.

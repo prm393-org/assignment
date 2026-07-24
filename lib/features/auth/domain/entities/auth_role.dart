@@ -37,6 +37,21 @@ String roleHomePath(AuthRole? role) {
   }
 }
 
+/// The role's route section (no trailing `/home`), for building sibling
+/// routes such as `<section>/notifications`.
+String roleSectionPath(AuthRole? role) {
+  switch (role) {
+    case AuthRole.farmer:
+      return '/farmer';
+    case AuthRole.admin:
+      return '/admin';
+    case AuthRole.cooperative:
+    case AuthRole.consumer:
+    case null:
+      return '/consumer';
+  }
+}
+
 String roleLabel(AuthRole role) {
   switch (role) {
     case AuthRole.consumer:

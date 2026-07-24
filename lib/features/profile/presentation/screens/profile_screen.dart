@@ -179,9 +179,27 @@ class ProfileScreen extends ConsumerWidget {
                       context.push('/login');
                       return;
                     }
-                    final base = roleHomePath(auth.role);
+                    final base = roleSectionPath(auth.role);
                     context.push('$base/notifications');
                   },
+                ),
+                ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.mint,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.settings_outlined,
+                      color: AppColors.forest,
+                      size: 20,
+                    ),
+                  ),
+                  title: const Text('Cài đặt thông báo'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push('/settings/notifications'),
                 ),
               ],
             ),

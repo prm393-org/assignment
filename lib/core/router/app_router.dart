@@ -43,6 +43,7 @@ import 'package:chuoi_xanh_viet/features/marketplace/presentation/screens/consum
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/screens/marketplace_screen.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/screens/product_detail_screen.dart';
 import 'package:chuoi_xanh_viet/features/marketplace/presentation/screens/shop_detail_screen.dart';
+import 'package:chuoi_xanh_viet/features/notification/presentation/screens/notification_settings_screen.dart';
 import 'package:chuoi_xanh_viet/features/notification/presentation/screens/notifications_screen.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/screens/earnings_screen.dart';
 import 'package:chuoi_xanh_viet/features/order/presentation/screens/order_detail_screen.dart';
@@ -649,6 +650,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/notifications',
         builder: (_, _) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/notifications',
+        builder: (_, _) => const NotificationSettingsScreen(),
       ),
       GoRoute(
         path: '/chat',

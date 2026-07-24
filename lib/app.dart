@@ -5,6 +5,7 @@ import 'package:chuoi_xanh_viet/core/router/app_router.dart';
 import 'package:chuoi_xanh_viet/core/theme/app_theme.dart';
 import 'package:chuoi_xanh_viet/features/chat/presentation/providers/chat_providers.dart';
 import 'package:chuoi_xanh_viet/features/notification/presentation/providers/messaging_providers.dart';
+import 'package:chuoi_xanh_viet/features/notification/presentation/providers/notification_providers.dart';
 
 class ChuoiXanhVietApp extends ConsumerWidget {
   const ChuoiXanhVietApp({super.key});
@@ -16,6 +17,8 @@ class ChuoiXanhVietApp extends ConsumerWidget {
     // Register FCM on sign-in and route/surface incoming pushes app-wide.
     ref.watch(messagingBindingProvider);
     ref.watch(fcmMessageListenerProvider);
+    // Repair the unread badge counter from the inbox on sign-in.
+    ref.watch(notificationCounterBindingProvider);
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
       title: 'Chuỗi Xanh Việt',

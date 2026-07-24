@@ -6,4 +6,8 @@ abstract class NotificationRepository {
   Stream<PaginatedResult<AppNotification>> watchInbox({bool? unreadOnly});
   Future<void> markRead(String id);
   Future<void> markAllRead();
+
+  /// Recomputes the unread badge counter from the inbox, repairing it after
+  /// notifications that were written while the counter was unreachable.
+  Future<void> syncUnreadCount();
 }
